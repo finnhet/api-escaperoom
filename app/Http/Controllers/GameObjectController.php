@@ -10,6 +10,11 @@ use App\Models\Inventory;
 
 class GameObjectController extends Controller
 {
+    /**
+     * Deze functie laat een speler een object in een kamer bekijken.
+     * Controleert of de speler een geldige sessie heeft en of hij/zij in de juiste kamer is.
+     * Zoekt het object op basis van de naam en geeft de beschrijving en eventuele sub-objecten terug.
+     */
     public function lookObject(Request $request, $roomId, $objectName)
     {
         $playerSession = $this->getPlayerSession($request);
@@ -50,6 +55,12 @@ class GameObjectController extends Controller
         return response()->json($response);
     }
     
+    /**
+     * Deze functie laat een speler een sub-object binnen een object bekijken.
+     * Controleert of de speler een geldige sessie heeft en of hij/zij in de juiste kamer is.
+     * Zoekt het sub-object op basis van de naam en geeft de beschrijving en eventuele inhoud terug.
+     * Als het sub-object verborgen items heeft, worden deze onthuld en zichtbaar gemaakt.
+     */
     public function lookSubObject(Request $request, $roomId, $objectName, $subObjectName)
     {
         $playerSession = $this->getPlayerSession($request);
@@ -120,6 +131,10 @@ class GameObjectController extends Controller
         return response()->json($response);
     }
     
+    /**
+     * Deze functie haalt de actieve spelerssessie op op basis van de Authorization-header.
+     * Als er geen geldige sessie is, wordt null geretourneerd.
+     */
     private function getPlayerSession(Request $request)
     {
         $sessionToken = $request->header('Authorization');
