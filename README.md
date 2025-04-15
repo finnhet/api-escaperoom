@@ -7,27 +7,70 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
-## About Laravel
+# Enhanced Escape Room API
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+This API provides a virtual escape room experience with randomized rooms and puzzles that you can interact with through Postman. Each time you start a new game, the room layout, objects, and puzzles will be different!
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Randomized Room Generation**: Each game creates a unique set of rooms with 3-5 rooms by default
+- **Randomly Placed Objects**: Objects and their locations vary each game
+- **Interactive Puzzles**: Several types of puzzles including combinations, hidden mechanisms, and more
+- **Inventory System**: Collect and use items to unlock doors and containers
+- **Complete Through API**: Everything is accessible through API calls (Postman)
 
-## Learning Laravel
+## How to Use
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+1. Clone the repository
+2. Run migrations: `php artisan migrate:fresh`
+3. Start the server: `php artisan serve`
+4. Import the `postman_collection.json` file into Postman
+5. Set your base URL environment variable to where your server is running (e.g., `http://localhost:8000`)
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Gameplay Guide
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Step 1: Start a New Game
+- Use the `Start New Game` request to begin
+- You can specify how many rooms to generate with the `room_count` parameter
+- The response will include a session token that is automatically saved to your environment variables
+
+### Step 2: Explore Rooms
+- Use `Look Around Current Room` to see what objects are available
+- Use `Look at Object` to examine objects more closely
+- Use `Look at Sub-Object` to examine objects within containers
+
+### Step 3: Solve Puzzles & Collect Items
+- Use the various puzzle endpoints to interact with objects:
+  - `Pull Lever`: Activate mechanisms that might reveal hidden items
+  - `Enter Combination`: Try to unlock combination locks (hints may be hidden in the room)
+  - `Solve Puzzle`: Solve various puzzles to progress
+- Take items by using the `Take Item` endpoint
+
+### Step 4: Navigate Between Rooms
+- Use `Open Door to Next Room` to move between rooms
+- You'll need the appropriate key to unlock doors
+
+### Step 5: Complete the Game
+- Find the exit door in the final room
+- Unlock it with the golden key
+- Use the `Finish Game` endpoint to complete the game
+
+## Puzzle Types
+
+1. **Combination Locks**: Require a numeric code to unlock
+2. **Levers**: Pull to reveal hidden objects or mechanisms
+3. **Hidden Objects**: Some items are only visible after examining containers
+4. **Locked Containers**: Require keys to open
+
+## Tips
+
+- Always check your inventory to see what items you have
+- Look at all objects in the room carefully
+- Some puzzles provide hints if you get the answer wrong
+- The room description often contains clues
+- Keys are named after the room they unlock (e.g., "key2" unlocks the door to room 2)
+
+Happy escaping!
 
 ## Laravel Sponsors
 

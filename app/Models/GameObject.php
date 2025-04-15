@@ -20,7 +20,15 @@ class GameObject extends Model
         'is_locked',
         'has_hidden_items',
         'revealed_hidden',
-        'is_taken'
+        'is_taken',
+        // New puzzle-related fields
+        'puzzle_type',
+        'puzzle_solution',
+        'puzzle_hint',
+        'puzzle_solved',
+        'puzzle_state',
+        'puzzle_difficulty',
+        'template_data'
     ];
 
     protected $casts = [
@@ -29,7 +37,10 @@ class GameObject extends Model
         'is_locked' => 'boolean',
         'has_hidden_items' => 'boolean',
         'revealed_hidden' => 'boolean',
-        'is_taken' => 'boolean'
+        'is_taken' => 'boolean',
+        'puzzle_solved' => 'boolean',
+        'puzzle_state' => 'array',
+        'template_data' => 'array'
     ];
 
     public function room()

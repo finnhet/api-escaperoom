@@ -17,6 +17,9 @@ return new class extends Migration
             $table->text('description');
             $table->json('adjacent_rooms')->nullable(); // Store IDs of connected rooms
             $table->boolean('is_final_room')->default(false);
+            $table->string('room_type')->default('standard'); // Types: standard, puzzle, boss, etc.
+            $table->integer('difficulty')->default(1); // 1-5 scale
+            $table->string('template_id')->nullable(); // For pre-designed room templates
             $table->timestamps();
         });
     }

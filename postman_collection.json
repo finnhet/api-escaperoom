@@ -1,0 +1,346 @@
+{
+  "info": {
+    "_postman_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "name": "Escape Room API with Random Rooms",
+    "description": "Collection for testing the enhanced escape room API with randomized rooms and puzzles",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Game Management",
+      "item": [
+        {
+          "name": "Start New Game",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"room_count\": 4\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/start-game",
+              "host": ["{{base_url}}"],
+              "path": ["api", "start-game"]
+            },
+            "description": "Start a new game with random rooms. Specify room_count (optional, defaults to random 3-5)"
+          },
+          "response": []
+        },
+        {
+          "name": "Finish Game (Win)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/finish-game",
+              "host": ["{{base_url}}"],
+              "path": ["api", "finish-game"]
+            },
+            "description": "Try to finish/win the game. You must be in the final room and have unlocked the exit door."
+          },
+          "response": []
+        }
+      ],
+      "description": "APIs for starting and finishing games"
+    },
+    {
+      "name": "2. Room Navigation",
+      "item": [
+        {
+          "name": "Look Around Current Room",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room/1/look",
+              "host": ["{{base_url}}"],
+              "path": ["api", "room", "1", "look"]
+            },
+            "description": "Look around your current room to see what's there. Replace 1 with whatever room ID you want to examine."
+          },
+          "response": []
+        },
+        {
+          "name": "Open Door to Next Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room/2/open",
+              "host": ["{{base_url}}"],
+              "path": ["api", "room", "2", "open"]
+            },
+            "description": "Try to open the door to the next room (e.g. room 2). You may need a key."
+          },
+          "response": []
+        }
+      ],
+      "description": "APIs for navigating between rooms"
+    },
+    {
+      "name": "3. Object Interaction",
+      "item": [
+        {
+          "name": "Look at Object",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room/1/desk/look",
+              "host": ["{{base_url}}"],
+              "path": ["api", "room", "1", "desk", "look"]
+            },
+            "description": "Look at a specific object in the room. Replace 'desk' with the object name."
+          },
+          "response": []
+        },
+        {
+          "name": "Look at Sub-Object",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room/1/desk/drawer/look",
+              "host": ["{{base_url}}"],
+              "path": ["api", "room", "1", "desk", "drawer", "look"]
+            },
+            "description": "Look at a sub-object within an object. Replace 'desk' and 'drawer' with the actual object names."
+          },
+          "response": []
+        },
+        {
+          "name": "Take Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room/1/desk/drawer/take-key2",
+              "host": ["{{base_url}}"],
+              "path": ["api", "room", "1", "desk", "drawer", "take-key2"]
+            },
+            "description": "Take an item from a container. Replace desk/drawer/key2 with the actual object hierarchy."
+          },
+          "response": []
+        }
+      ],
+      "description": "APIs for interacting with room objects"
+    },
+    {
+      "name": "4. Inventory",
+      "item": [
+        {
+          "name": "View Inventory",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/inventory",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventory"]
+            },
+            "description": "View all items in your inventory"
+          },
+          "response": []
+        }
+      ],
+      "description": "APIs for managing your inventory"
+    },
+    {
+      "name": "5. Puzzles",
+      "item": [
+        {
+          "name": "Pull Lever",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room/1/secret lever/pull-lever",
+              "host": ["{{base_url}}"],
+              "path": ["api", "room", "1", "secret lever", "pull-lever"]
+            },
+            "description": "Pull a lever to trigger an action. Replace 'secret lever' with the actual lever name."
+          },
+          "response": []
+        },
+        {
+          "name": "Unlock with Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"key\": \"key2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/room/1/door to room2/unlock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "room", "1", "door to room2", "unlock"]
+            },
+            "description": "Unlock a door or container with a key. Specify the key name in the request body."
+          },
+          "response": []
+        },
+        {
+          "name": "Enter Combination",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"combination\": \"1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/room/1/safe/enter-combination",
+              "host": ["{{base_url}}"],
+              "path": ["api", "room", "1", "safe", "enter-combination"]
+            },
+            "description": "Enter a combination for a lock or safe. Replace 'safe' with the actual object name."
+          },
+          "response": []
+        },
+        {
+          "name": "Solve Puzzle",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"solution\": \"your answer here\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/room/1/safe/solve-puzzle",
+              "host": ["{{base_url}}"],
+              "path": ["api", "room", "1", "safe", "solve-puzzle"]
+            },
+            "description": "Solve a generic puzzle. Replace 'safe' with the object that has the puzzle."
+          },
+          "response": []
+        }
+      ],
+      "description": "APIs for solving puzzles"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code === 200 || pm.response.code === 201) {",
+          "    if (pm.response.json().session_token) {",
+          "        pm.environment.set('session_token', pm.response.json().session_token);",
+          "        console.log('Session token saved: ' + pm.response.json().session_token);",
+          "    }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "session_token",
+      "value": ""
+    }
+  ]
+}

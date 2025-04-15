@@ -13,12 +13,16 @@ class Room extends Model
         'name',
         'description',
         'adjacent_rooms',
-        'is_final_room'
+        'is_final_room',
+        'room_type',
+        'difficulty',
+        'template_id'
     ];
 
     protected $casts = [
         'adjacent_rooms' => 'array',
-        'is_final_room' => 'boolean'
+        'is_final_room' => 'boolean',
+        'difficulty' => 'integer'
     ];
 
     public function objects()

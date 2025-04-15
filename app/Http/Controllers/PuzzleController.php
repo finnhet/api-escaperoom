@@ -1,0 +1,383 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\GameObject;
+use App\Models\PlayerSession;
+use App\Models\Inventory;
+
+class PuzzleController extends Controller
+{
+    public function solvePuzzle(Request $request, $roomId, $objectName)
+    {
+        $playerSession = $this->getPlayerSession($request);
+        
+        if (!$playerSession) {
+            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+        }
+        
+        if ($playerSession->current_room_id != $roomId) {
+            return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
+        }
+        
+        $object = GameObject::where('room_id', $roomId)
+            ->where('name', $objectName)
+            ->where('is_visible', true)
+            ->first();
+        
+        if (!$object) {
+            return response()->json(['error' => "Object '{$objectName}' not found in this room."], 404);
+        }
+        
+        if (!$object->puzzle_type) {
+            return response()->json(['error' => "This object doesn't have a puzzle to solve."], 400);
+        }
+        
+        if ($object->puzzle_solved) {
+            return response()->json(['message' => "This puzzle has already been solved."], 200);
+        }
+        
+        // Validate solution based on puzzle type
+        $solution = $request->get('solution');
+        if (!$solution) {
+            return response()->json(['error' => "Please provide a solution."], 400);
+        }
+        
+        $result = $this->checkPuzzleSolution($object, $solution);
+        
+        if ($result['success']) {
+            // Update the object's state to solved
+            $object->puzzle_solved = true;
+            $object->save();
+            
+            // Unlock items or reveal hidden objects as needed
+            $this->handlePuzzleRewards($object);
+            
+            return response()->json([
+                'message' => 'Puzzle solved successfully!',
+                'result' => $result['message'],
+                'reward' => $result['reward'] ?? null
+            ]);
+        } else {
+            return response()->json([
+                'message' => 'That solution is incorrect.',
+                'hint' => $object->puzzle_hint
+            ], 400);
+        }
+    }
+    
+    public function pullLever(Request $request, $roomId, $objectName)
+    {
+        $playerSession = $this->getPlayerSession($request);
+        
+        if (!$playerSession) {
+            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+        }
+        
+        if ($playerSession->current_room_id != $roomId) {
+            return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
+        }
+        
+        $lever = GameObject::where('room_id', $roomId)
+            ->where('name', $objectName)
+            ->where('type', 'mechanism')
+            ->where('is_visible', true)
+            ->first();
+        
+        if (!$lever) {
+            return response()->json(['error' => "Lever '{$objectName}' not found in this room."], 404);
+        }
+        
+        // Find any objects that should be revealed when this lever is pulled
+        $hiddenObjects = GameObject::where('room_id', $roomId)
+            ->where('is_visible', false)
+            ->get();
+            
+        $revealed = false;
+        
+        foreach ($hiddenObjects as $hiddenObject) {
+            // Randomly choose some objects to reveal
+            if (rand(1, 10) > 5) {
+                $hiddenObject->is_visible = true;
+                $hiddenObject->save();
+                $revealed = true;
+            }
+        }
+        
+        if ($revealed) {
+            return response()->json([
+                'message' => 'You pulled the lever and revealed something hidden in the room!'
+            ]);
+        } else {
+            return response()->json([
+                'message' => 'You pulled the lever, but nothing seems to have happened.'
+            ]);
+        }
+    }
+    
+    public function unlockWithKey(Request $request, $roomId, $objectName)
+    {
+        $playerSession = $this->getPlayerSession($request);
+        
+        if (!$playerSession) {
+            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+        }
+        
+        if ($playerSession->current_room_id != $roomId) {
+            return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
+        }
+        
+        $object = GameObject::where('room_id', $roomId)
+            ->where('name', $objectName)
+            ->where('is_visible', true)
+            ->where('is_locked', true)
+            ->first();
+        
+        if (!$object) {
+            return response()->json(['error' => "Locked object '{$objectName}' not found in this room."], 404);
+        }
+        
+        $keyName = $request->get('key');
+        
+        if (!$keyName) {
+            return response()->json(['error' => "Please specify which key to use."], 400);
+        }
+        
+        // Check if player has this key in inventory
+        $keyObject = GameObject::where('name', $keyName)
+            ->where('type', 'key')
+            ->first();
+            
+        if (!$keyObject) {
+            return response()->json(['error' => "Key '{$keyName}' does not exist."], 404);
+        }
+        
+        $hasKey = Inventory::where('player_session_id', $playerSession->id)
+            ->where('game_object_id', $keyObject->id)
+            ->exists();
+            
+        if (!$hasKey) {
+            return response()->json(['error' => "You don't have this key in your inventory."], 403);
+        }
+        
+        // Check if this key works for this object
+        $works = false;
+        
+        // Door unlocking logic
+        if ($object->type == 'door' && str_contains($object->name, 'door to room')) {
+            $roomNumber = intval(str_replace('door to room', '', $object->name));
+            if ($keyName == "key{$roomNumber}") {
+                $works = true;
+            }
+        }
+        // Exit door special case
+        else if ($object->name == 'exit door' && $keyName == 'golden key') {
+            $works = true;
+        }
+        // Container unlocking logic - any key can work
+        else if ($object->type == 'container') {
+            $works = true;
+        }
+        
+        if ($works) {
+            $object->is_locked = false;
+            $object->save();
+            
+            // If object has hidden items, reveal them
+            if ($object->has_hidden_items) {
+                $hiddenItems = GameObject::where('parent_id', $object->id)
+                    ->where('is_visible', false)
+                    ->get();
+                    
+                foreach ($hiddenItems as $item) {
+                    $item->is_visible = true;
+                    $item->save();
+                }
+            }
+            
+            return response()->json([
+                'message' => "You unlocked the {$object->name} with the {$keyName}!"
+            ]);
+        } else {
+            return response()->json([
+                'message' => "The {$keyName} doesn't fit the {$object->name}."
+            ], 400);
+        }
+    }
+    
+    public function enterCombination(Request $request, $roomId, $objectName)
+    {
+        $playerSession = $this->getPlayerSession($request);
+        
+        if (!$playerSession) {
+            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+        }
+        
+        if ($playerSession->current_room_id != $roomId) {
+            return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
+        }
+        
+        $object = GameObject::where('room_id', $roomId)
+            ->where('name', $objectName)
+            ->where('is_visible', true)
+            ->where('is_locked', true)
+            ->first();
+        
+        if (!$object) {
+            return response()->json(['error' => "Object '{$objectName}' not found or is not locked."], 404);
+        }
+        
+        $combination = $request->get('combination');
+        
+        if (!$combination) {
+            return response()->json(['error' => "Please provide a combination."], 400);
+        }
+        
+        // Generate a random solution if one doesn't exist
+        if (!$object->puzzle_solution) {
+            $solution = $this->generateRandomCombination();
+            $object->puzzle_solution = $solution;
+            $object->puzzle_hint = "The combination is {$this->getHintForCombination($solution)}";
+            $object->save();
+        }
+        
+        if ($combination == $object->puzzle_solution) {
+            $object->is_locked = false;
+            $object->puzzle_solved = true;
+            $object->save();
+            
+            // Reveal any hidden items
+            if ($object->has_hidden_items) {
+                $hiddenItems = GameObject::where('parent_id', $object->id)
+                    ->where('is_visible', false)
+                    ->get();
+                    
+                foreach ($hiddenItems as $item) {
+                    $item->is_visible = true;
+                    $item->save();
+                }
+            }
+            
+            return response()->json([
+                'message' => "The combination worked! The {$object->name} is now unlocked."
+            ]);
+        } else {
+            // Give a hint based on how close they are
+            return response()->json([
+                'message' => "That combination didn't work.",
+                'hint' => $object->puzzle_hint
+            ], 400);
+        }
+    }
+    
+    private function generateRandomCombination()
+    {
+        // Generate a random 3-4 digit combination
+        $length = rand(3, 4);
+        $combination = '';
+        
+        for ($i = 0; $i < $length; $i++) {
+            $combination .= rand(0, 9);
+        }
+        
+        return $combination;
+    }
+    
+    private function getHintForCombination($combination)
+    {
+        // Provide a cryptic hint about the combination
+        $hints = [
+            "a number with " . strlen($combination) . " digits",
+            "related to the number of objects in this room",
+            "hidden somewhere in plain sight",
+            "the sum of all digits is " . array_sum(str_split($combination))
+        ];
+        
+        return $hints[array_rand($hints)];
+    }
+    
+    private function checkPuzzleSolution($object, $solution)
+    {
+        // Generate a random solution if one doesn't exist
+        if (!$object->puzzle_solution) {
+            if ($object->puzzle_type == 'combination') {
+                $object->puzzle_solution = $this->generateRandomCombination();
+            } else {
+                // For other puzzle types, generate appropriate solutions
+                $object->puzzle_solution = md5(uniqid());
+            }
+            $object->save();
+        }
+        
+        // Check if solution is correct
+        if ($solution == $object->puzzle_solution) {
+            $rewards = [
+                "You found a hidden compartment!",
+                "A secret passage has been revealed!",
+                "You hear a click as something unlocks nearby.",
+                "A panel slides away, revealing something hidden."
+            ];
+            
+            return [
+                'success' => true,
+                'message' => "Puzzle solved successfully!",
+                'reward' => $rewards[array_rand($rewards)]
+            ];
+        } else {
+            return [
+                'success' => false,
+                'message' => "That solution is incorrect."
+            ];
+        }
+    }
+    
+    private function handlePuzzleRewards($object)
+    {
+        // Unlock the object if it's locked
+        if ($object->is_locked) {
+            $object->is_locked = false;
+            $object->save();
+        }
+        
+        // Reveal hidden items if there are any
+        if ($object->has_hidden_items) {
+            $hiddenItems = GameObject::where('parent_id', $object->id)
+                ->where('is_visible', false)
+                ->get();
+                
+            foreach ($hiddenItems as $item) {
+                $item->is_visible = true;
+                $item->save();
+            }
+        }
+        
+        // Reveal other objects in the room based on the puzzle type
+        if ($object->puzzle_type == 'trigger') {
+            $hiddenObjects = GameObject::where('room_id', $object->room_id)
+                ->where('is_visible', false)
+                ->get();
+                
+            foreach ($hiddenObjects as $hiddenObject) {
+                // 50% chance to reveal each hidden object
+                if (rand(0, 1)) {
+                    $hiddenObject->is_visible = true;
+                    $hiddenObject->save();
+                }
+            }
+        }
+    }
+    
+    private function getPlayerSession(Request $request)
+    {
+        $sessionToken = $request->header('Authorization');
+        
+        if (!$sessionToken) {
+            return null;
+        }
+        
+        return PlayerSession::where('session_token', $sessionToken)
+            ->where('is_active', true)
+            ->first();
+    }
+}
