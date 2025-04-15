@@ -38,7 +38,7 @@ class PuzzleController extends Controller
             return response()->json(['message' => "This puzzle has already been solved."], 200);
         }
         
-        // Validate solution based on puzzle type
+        
         $solution = $request->get('solution');
         if (!$solution) {
             return response()->json(['error' => "Please provide a solution."], 400);
@@ -47,11 +47,11 @@ class PuzzleController extends Controller
         $result = $this->checkPuzzleSolution($object, $solution);
         
         if ($result['success']) {
-            // Update the object's state to solved
+            
             $object->puzzle_solved = true;
             $object->save();
             
-            // Unlock items or reveal hidden objects as needed
+            
             $this->handlePuzzleRewards($object);
             
             return response()->json([
@@ -89,7 +89,7 @@ class PuzzleController extends Controller
             return response()->json(['error' => "Lever '{$objectName}' not found in this room."], 404);
         }
         
-        // Find any objects that should be revealed when this lever is pulled
+        
         $hiddenObjects = GameObject::where('room_id', $roomId)
             ->where('is_visible', false)
             ->get();
@@ -97,7 +97,7 @@ class PuzzleController extends Controller
         $revealed = false;
         
         foreach ($hiddenObjects as $hiddenObject) {
-            // Randomly choose some objects to reveal
+            
             if (rand(1, 10) > 5) {
                 $hiddenObject->is_visible = true;
                 $hiddenObject->save();
@@ -144,7 +144,7 @@ class PuzzleController extends Controller
             return response()->json(['error' => "Please specify which key to use."], 400);
         }
         
-        // Check if player has this key in inventory
+        
         $keyObject = GameObject::where('name', $keyName)
             ->where('type', 'key')
             ->first();
@@ -161,21 +161,21 @@ class PuzzleController extends Controller
             return response()->json(['error' => "You don't have this key in your inventory."], 403);
         }
         
-        // Check if this key works for this object
+        
         $works = false;
         
-        // Door unlocking logic
+        
         if ($object->type == 'door' && str_contains($object->name, 'door to room')) {
             $roomNumber = intval(str_replace('door to room', '', $object->name));
             if ($keyName == "key{$roomNumber}") {
                 $works = true;
             }
         }
-        // Exit door special case
+        
         else if ($object->name == 'exit door' && $keyName == 'golden key') {
             $works = true;
         }
-        // Container unlocking logic - any key can work
+        
         else if ($object->type == 'container') {
             $works = true;
         }
@@ -184,7 +184,7 @@ class PuzzleController extends Controller
             $object->is_locked = false;
             $object->save();
             
-            // If object has hidden items, reveal them
+            
             if ($object->has_hidden_items) {
                 $hiddenItems = GameObject::where('parent_id', $object->id)
                     ->where('is_visible', false)
@@ -234,7 +234,7 @@ class PuzzleController extends Controller
             return response()->json(['error' => "Please provide a combination."], 400);
         }
         
-        // Generate a random solution if one doesn't exist
+        
         if (!$object->puzzle_solution) {
             $solution = $this->generateRandomCombination();
             $object->puzzle_solution = $solution;
@@ -247,7 +247,7 @@ class PuzzleController extends Controller
             $object->puzzle_solved = true;
             $object->save();
             
-            // Reveal any hidden items
+            
             if ($object->has_hidden_items) {
                 $hiddenItems = GameObject::where('parent_id', $object->id)
                     ->where('is_visible', false)
@@ -263,7 +263,7 @@ class PuzzleController extends Controller
                 'message' => "The combination worked! The {$object->name} is now unlocked."
             ]);
         } else {
-            // Give a hint based on how close they are
+            
             return response()->json([
                 'message' => "That combination didn't work.",
                 'hint' => $object->puzzle_hint
@@ -273,7 +273,7 @@ class PuzzleController extends Controller
     
     private function generateRandomCombination()
     {
-        // Generate a random 3-4 digit combination
+        
         $length = rand(3, 4);
         $combination = '';
         
@@ -286,7 +286,7 @@ class PuzzleController extends Controller
     
     private function getHintForCombination($combination)
     {
-        // Provide a cryptic hint about the combination
+        
         $hints = [
             "a number with " . strlen($combination) . " digits",
             "related to the number of objects in this room",
@@ -299,18 +299,18 @@ class PuzzleController extends Controller
     
     private function checkPuzzleSolution($object, $solution)
     {
-        // Generate a random solution if one doesn't exist
+        
         if (!$object->puzzle_solution) {
             if ($object->puzzle_type == 'combination') {
                 $object->puzzle_solution = $this->generateRandomCombination();
             } else {
-                // For other puzzle types, generate appropriate solutions
+                
                 $object->puzzle_solution = md5(uniqid());
             }
             $object->save();
         }
         
-        // Check if solution is correct
+        
         if ($solution == $object->puzzle_solution) {
             $rewards = [
                 "You found a hidden compartment!",
@@ -334,13 +334,13 @@ class PuzzleController extends Controller
     
     private function handlePuzzleRewards($object)
     {
-        // Unlock the object if it's locked
+        
         if ($object->is_locked) {
             $object->is_locked = false;
             $object->save();
         }
         
-        // Reveal hidden items if there are any
+        
         if ($object->has_hidden_items) {
             $hiddenItems = GameObject::where('parent_id', $object->id)
                 ->where('is_visible', false)
@@ -352,14 +352,14 @@ class PuzzleController extends Controller
             }
         }
         
-        // Reveal other objects in the room based on the puzzle type
+        
         if ($object->puzzle_type == 'trigger') {
             $hiddenObjects = GameObject::where('room_id', $object->room_id)
                 ->where('is_visible', false)
                 ->get();
                 
             foreach ($hiddenObjects as $hiddenObject) {
-                // 50% chance to reveal each hidden object
+                
                 if (rand(0, 1)) {
                     $hiddenObject->is_visible = true;
                     $hiddenObject->save();

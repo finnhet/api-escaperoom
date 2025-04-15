@@ -21,25 +21,25 @@ class RoomController extends Controller
 
     public function startGame(Request $request)
     {
-        // Get room count from request or default to 3-5
+        
         $roomCount = $request->get('room_count', rand(3, 5));
         
-        // Generate random rooms
+        
         $rooms = $this->roomGenerator->generateRooms($roomCount);
         
-        // Make sure we have generated at least one room
+        
         if (empty($rooms)) {
             return response()->json(['error' => 'Failed to generate rooms'], 500);
         }
         
         $firstRoom = $rooms[0];
         
-        // Create a player session with the first room's ID
+        
         $sessionToken = md5(uniqid(rand(), true));
         
         $playerSession = PlayerSession::create([
             'session_token' => $sessionToken,
-            'current_room_id' => $firstRoom->id,  // Use the actual first room ID instead of assuming it's 1
+            'current_room_id' => $firstRoom->id,  
             'start_time' => now(),
             'is_active' => true
         ]);
@@ -62,13 +62,10 @@ class RoomController extends Controller
             return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
         }
         
-        // Modified to handle both ID and "room1", "room2", etc naming conventions
-        $room = null;
+            $room = null;
         
-        // First try to find the room by ID
         $room = Room::find($roomId);
         
-        // If not found by ID, try finding by name "room{ID}"
         if (!$room) {
             $room = Room::where('name', 'room' . $roomId)->first();
         }
@@ -103,7 +100,6 @@ class RoomController extends Controller
             $hints[] = "This appears to be the final room. Find a way to escape!";
         }
         
-        // Look for puzzles in the room
         $puzzles = GameObject::where('room_id', $room->id)
             ->whereNotNull('puzzle_type')
             ->where('is_visible', true)
@@ -160,7 +156,7 @@ class RoomController extends Controller
                     ], 403);
                 }
                 
-                // Unlock the door since they have the key
+                
                 $door->is_locked = false;
                 $door->save();
             }
@@ -192,7 +188,6 @@ class RoomController extends Controller
             return response()->json(['error' => 'You need to reach the final room first!'], 403);
         }
         
-        // Check if they've unlocked the exit door
         $exitDoor = GameObject::where('room_id', $currentRoom->id)
             ->where('name', 'exit door')
             ->where('type', 'door')
@@ -205,7 +200,6 @@ class RoomController extends Controller
             ], 403);
         }
         
-        // They've successfully completed the game
         $playerSession->end_time = now();
         $playerSession->has_completed = true;
         $playerSession->save();
@@ -238,7 +232,6 @@ class RoomController extends Controller
             return true;
         }
         
-        // Always allow access to room1 (first room)
         $room1 = Room::where('name', 'room1')->first();
         if ($room1 && $roomId == $room1->id) {
             return true;
