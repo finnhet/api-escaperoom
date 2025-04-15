@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\GameObject;
 use App\Models\PlayerSession;
 use App\Models\Inventory;
+use App\Models\Room;
 
 class PuzzleController extends Controller
 {
@@ -124,11 +125,31 @@ class PuzzleController extends Controller
             return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
         }
         
-        if ($playerSession->current_room_id != $roomId) {
+        // Get the player's current room
+        $currentRoomId = $playerSession->current_room_id;
+        
+        // Find the room the player is trying to interact with - support both IDs and names like "room3"
+        $targetRoom = null;
+        
+        // First try direct ID lookup
+        $targetRoom = Room::find($roomId);
+        
+        // If not found, try looking up by room name (if numeric ID was provided)
+        if (!$targetRoom && is_numeric($roomId)) {
+            $targetRoom = Room::where('name', 'room' . $roomId)->first();
+        }
+        
+        if (!$targetRoom) {
+            return response()->json(['error' => "Room {$roomId} not found."], 404);
+        }
+        
+        // Check if the player is actually in the target room
+        if ($playerSession->current_room_id != $targetRoom->id) {
             return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
         }
         
-        $object = GameObject::where('room_id', $roomId)
+        // Find the object to unlock
+        $object = GameObject::where('room_id', $targetRoom->id)
             ->where('name', $objectName)
             ->where('is_visible', true)
             ->where('is_locked', true)

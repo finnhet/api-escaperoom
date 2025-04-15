@@ -234,6 +234,9 @@ class RoomGeneratorService
         } else {
             // Add exit door for the final room
             $this->createExitDoor($room->id);
+            
+            // FAILSAFE: Add a golden key directly in the final room
+            $this->createFinalRoomGoldenKey($room->id);
         }
         
         // Add random objects
@@ -381,51 +384,100 @@ class RoomGeneratorService
     
     private function createKey($roomId, $forRoomId)
     {
-        // Find a random container in the room to place the key
+        // Try to find a suitable container that's not locked and is visible
         $containers = GameObject::where('room_id', $roomId)
             ->where('type', 'container')
             ->where('is_locked', false)
+            ->where('is_visible', true)
             ->get();
         
         $parentId = null;
+        
+        // If we have suitable containers, randomly choose one
         if ($containers->count() > 0) {
             $container = $containers->random();
             $parentId = $container->id;
         }
         
+        // Create the key - always visible and takeable
         GameObject::create([
             'name' => 'key' . $forRoomId,
             'description' => 'A key with the number ' . $forRoomId . ' engraved on it.',
             'room_id' => $roomId,
             'parent_id' => $parentId,
             'type' => 'key',
-            'is_visible' => $parentId ? rand(0, 1) : true, // May be hidden if inside a container
+            'is_visible' => true, // Always visible
             'is_takeable' => true,
         ]);
+        
+        // As a backup, create a hint in the room description about where to find the key
+        $room = Room::find($roomId);
+        if ($room) {
+            // Only add hint if it doesn't already contain one
+            if (!str_contains($room->description, 'key')) {
+                $room->description .= ' There might be a key somewhere in this room.';
+                $room->save();
+            }
+        }
     }
     
     private function createGoldenKey($roomId)
     {
-        // Find a random container in the room to place the key
+        // Try to find a suitable container that's visible (might be locked)
         $containers = GameObject::where('room_id', $roomId)
             ->where('type', 'container')
+            ->where('is_visible', true)
             ->get();
         
         $parentId = null;
+        
+        // If we have suitable containers, randomly choose one
         if ($containers->count() > 0) {
             $container = $containers->random();
             $parentId = $container->id;
             
-            // Make sure the container is locked
-            $container->is_locked = true;
-            $container->save();
+            // Container with golden key should be locked but not too difficult to find
+            if ($container->is_locked) {
+                // Make sure there's a hint about the locked container
+                $room = Room::find($roomId);
+                if ($room && !str_contains($room->description, 'locked')) {
+                    $room->description .= ' There\'s a locked container here that might hold something valuable.';
+                    $room->save();
+                }
+            } else {
+                // If container wasn't locked, lock it to make the golden key a bit more challenging
+                $container->is_locked = true;
+                $container->save();
+            }
         }
         
+        // Create the golden key - always visible once container is unlocked
         GameObject::create([
             'name' => 'golden key',
-            'description' => 'A beautiful golden key that seems important.',
+            'description' => 'A beautiful golden key that seems important. It will likely open the final exit.',
             'room_id' => $roomId,
             'parent_id' => $parentId,
+            'type' => 'key',
+            'is_visible' => true,
+            'is_takeable' => true,
+        ]);
+        
+        // If we couldn't find a container, add a hint to help the player
+        if (!$parentId) {
+            $room = Room::find($roomId);
+            if ($room) {
+                $room->description .= ' You notice something golden glinting in the corner.';
+                $room->save();
+            }
+        }
+    }
+    
+    private function createFinalRoomGoldenKey($roomId)
+    {
+        GameObject::create([
+            'name' => 'golden key',
+            'description' => 'A beautiful golden key that seems important. It will likely open the final exit.',
+            'room_id' => $roomId,
             'type' => 'key',
             'is_visible' => true,
             'is_takeable' => true,
