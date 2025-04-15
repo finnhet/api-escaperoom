@@ -10,20 +10,21 @@ use App\Models\Inventory;
 
 class GameObjectController extends Controller
 {
-  
-    public function lookObject(Request $request, $roomId, $objectName)
+    public function lookObject(Request  $request, $roomId, $objectName)
     {
         $playerSession = $this->getPlayerSession($request);
-        
+        $room = Room::find($playerSession->current_room_id);
+        $room_Id = $room->id;
+
         if (!$playerSession) {
             return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
         }
-        
-        if ($playerSession->current_room_id != $roomId) {
+
+        if ($playerSession->current_room_id != $room_Id) {
             return response()->json(['error' => 'You need to be in the room to look at objects.'], 403);
         }
         
-        $object = GameObject::where('room_id', $roomId)
+        $object = GameObject::where('room_id', $room_Id)
             ->where('name', $objectName)
             ->where('is_visible', true)
             ->first();
@@ -55,16 +56,18 @@ class GameObjectController extends Controller
     public function lookSubObject(Request $request, $roomId, $objectName, $subObjectName)
     {
         $playerSession = $this->getPlayerSession($request);
+        $room = Room::find($playerSession->current_room_id);
+        $room_Id = $room->id;
         
         if (!$playerSession) {
             return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
         }
-        
-        if ($playerSession->current_room_id != $roomId) {
+
+        if ($playerSession->current_room_id != $room_Id) {
             return response()->json(['error' => 'You need to be in the room to look at objects.'], 403);
         }
         
-        $parentObject = GameObject::where('room_id', $roomId)
+        $parentObject = GameObject::where('room_id', $room_Id)
             ->where('name', $objectName)
             ->where('is_visible', true)
             ->first();
