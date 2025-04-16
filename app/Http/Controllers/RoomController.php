@@ -29,7 +29,7 @@ class RoomController extends Controller
         
         
         if (empty($rooms)) {
-            return response()->json(['error' => 'Failed to generate rooms'], 500);
+            return response()->json(['error' => 'Kamer genereren mislukt'], 500);
         }
         
         $firstRoom = $rooms[0];
@@ -45,12 +45,12 @@ class RoomController extends Controller
         ]);
         
         return response()->json([
-            'message' => 'New game started with randomly generated rooms!',
+            'message' => 'Nieuw game gestart',
             'session_token' => $sessionToken,
             'current_room' => $firstRoom->name,
             'description' => $firstRoom->description,
             'room_count' => count($rooms),
-            'tip' => 'Use this token in your Authorization header for future requests',
+            'tip' => 'Hou deze token in de headers als je verder wilt spelen',
         ]);
     }
     
@@ -59,7 +59,7 @@ class RoomController extends Controller
         $playerSession = $this->getPlayerSession($request);
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Start een game api/start-game.'], 401);
         }
         
         $room = null;
@@ -71,11 +71,11 @@ class RoomController extends Controller
         }
         
         if (!$room) {
-            return response()->json(['error' => "Room {$roomId} not found."], 404);
+            return response()->json(['error' => "kamer {$roomId} niet gevonden."], 404);
         }
         
         if (!$this->canAccessRoom($playerSession, $room->id)) {
-            return response()->json(['error' => 'You don\'t have access to this room yet.'], 403);
+            return response()->json(['error' => 'Je hebt nog geen toegang tot deze kamer.'], 403);
         }
         
         $objects = GameObject::where('room_id', $room->id)
@@ -415,7 +415,7 @@ class RoomController extends Controller
     }
     
     private function canAccessRoom($playerSession, $roomId)
-    {
+    {        
         if ($playerSession->current_room_id == $roomId) {
             return true;
         }
@@ -431,7 +431,25 @@ class RoomController extends Controller
         }
         
         $adjacentRooms = json_decode($currentRoom->adjacent_rooms, true) ?? [];
+
+        if (in_array($roomId, $adjacentRooms)) {
+            $door = GameObject::where('room_id', $currentRoom->id)
+                ->where(function($query) use ($roomId) {
+                    $query->where('name', 'door to room' . $roomId)
+                        ->orWhere('name', 'like', '%door%' . $roomId . '%');
+                })
+                ->where('type', 'door')
+                ->first();
+            
+            
+            if ($door && $door->is_locked) {
+                return false;
+            }
+            
+            
+            return true;
+        }
         
-        return in_array($roomId, $adjacentRooms);
+        return false;
     }
 }

@@ -122,7 +122,7 @@ class RoomGeneratorService
             'difficulty' => [1, 4],
         ],
         'pattern' => [
-            'description' => 'A pattern that needs to be completed.',
+            'description' => '>generateA pattern that needs to be completed.',
             'difficulty' => [2, 4],
         ],
         'color_sequence' => [
@@ -133,21 +133,16 @@ class RoomGeneratorService
     
     public function generateRooms($roomCount = 3)
     {
-        // First, delete any existing player sessions and inventory items
-        // This will remove the foreign key constraints that prevent deleting rooms
         Inventory::query()->delete();
         PlayerSession::query()->delete();
-        
-        // Clear existing game objects and rooms with proper handling of foreign key constraints
+   
         $gameObjects = GameObject::all();
         
-        // First, nullify all parent_id references to break the circular dependency
         foreach ($gameObjects as $object) {
             $object->parent_id = null;
             $object->save();
         }
         
-        // Now we can safely delete all game objects
         GameObject::query()->delete();
         Room::query()->delete();
         
@@ -155,14 +150,11 @@ class RoomGeneratorService
         $templates = array_keys($this->roomTemplates);
         $finalRoomTemplate = $templates[array_rand($templates)];
         
-        // Generate rooms
         for ($i = 1; $i <= $roomCount; $i++) {
-            $isLastRoom = ($i == $roomCount);
-            
-            // Select a random template for each room except the last one
-            $template = $isLastRoom ? $finalRoomTemplate : $templates[array_rand($templates)];
-            
-            // Create the room
+            $isLastRoom = ($i == $roomCount);            
+
+            $template = $isLastRoom ? $finalRoomTemplate : $templates[array_rand($templates)];            
+
             $roomName = 'room' . $i;
             $templateData = $this->roomTemplates[$template];
             
@@ -171,7 +163,7 @@ class RoomGeneratorService
             $room = Room::create([
                 'name' => $roomName,
                 'description' => $templateData['description'],
-                'adjacent_rooms' => json_encode([]),  // We'll update this after creating all rooms
+                'adjacent_rooms' => json_encode([]),  
                 'is_final_room' => $isLastRoom,
                 'room_type' => $isLastRoom ? 'final' : 'standard',
                 'template_id' => $template,
@@ -180,26 +172,22 @@ class RoomGeneratorService
             
             $rooms[] = $room;
             
-            // Remove the used template to avoid duplicates
             if (!$isLastRoom) {
                 $key = array_search($template, $templates);
                 if ($key !== false) {
                     unset($templates[$key]);
-                    $templates = array_values($templates); // Re-index the array
+                    $templates = array_values($templates); 
                 }
             }
         }
         
-        // Set adjacent rooms
         for ($i = 0; $i < count($rooms); $i++) {
             $adjacentRooms = [];
             
-            // Previous room is adjacent if it exists
             if ($i > 0) {
                 $adjacentRooms[] = $rooms[$i-1]->id;
             }
             
-            // Next room is adjacent if it exists
             if ($i < count($rooms) - 1) {
                 $adjacentRooms[] = $rooms[$i+1]->id;
             }
@@ -208,7 +196,7 @@ class RoomGeneratorService
             $rooms[$i]->save();
         }
         
-        // Generate objects for each room
+        
         foreach ($rooms as $room) {
             $this->generateRoomObjects($room);
         }
@@ -221,30 +209,30 @@ class RoomGeneratorService
         $objectCount = $room->is_final_room ? 4 : rand(2, 4);
         $templates = array_keys($this->objectTemplates);
         
-        // Always add a door to the next room unless it's the final room
+        
         if (!$room->is_final_room) {
             $adjacentRooms = json_decode($room->adjacent_rooms, true);
             if (!empty($adjacentRooms)) {
                 foreach ($adjacentRooms as $adjRoomId) {
-                    if ($adjRoomId > $room->id) {  // This is the next room
+                    if ($adjRoomId > $room->id) {  
                         $this->createDoor($room->id, $adjRoomId);
                     }
                 }
             }
         } else {
-            // Add exit door for the final room
+            
             $this->createExitDoor($room->id);
             
-            // FAILSAFE: Add a golden key directly in the final room
+            
             $this->createFinalRoomGoldenKey($room->id);
         }
         
-        // Add random objects
+        
         $usedTemplates = [];
         for ($i = 0; $i < $objectCount; $i++) {
             $template = $templates[array_rand($templates)];
             
-            // Skip if we've already used this template in this room
+            
             if (in_array($template, $usedTemplates)) {
                 continue;
             }
@@ -253,7 +241,7 @@ class RoomGeneratorService
             $usedTemplates[] = $template;
         }
         
-        // Ensure at least one key exists in non-final rooms
+        
         if (!$room->is_final_room) {
             $adjacentRooms = json_decode($room->adjacent_rooms, true);
             if (is_array($adjacentRooms)) {
@@ -264,7 +252,7 @@ class RoomGeneratorService
                 }
             }
         } else {
-            // Add golden key for exit door in one of the previous rooms
+            
             $previousRoomId = $room->id - 1;
             if ($previousRoomId > 0) {
                 $this->createGoldenKey($previousRoomId);
@@ -275,16 +263,14 @@ class RoomGeneratorService
     private function createObjectFromTemplate($roomId, $templateName, $parentId = null)
     {
         $template = $this->objectTemplates[$templateName];
-        $objectName = Str::slug($templateName, ' '); // Convert to space-separated words
-        
-        // Randomize some properties if they are arrays
+        $objectName = Str::slug($templateName, ' '); 
+
         foreach ($template as $key => $value) {
             if (is_array($value) && !in_array($key, ['children'])) {
                 $template[$key] = $value[array_rand($value)];
             }
         }
         
-        // Create the object
         $object = GameObject::create([
             'name' => $objectName,
             'description' => $template['description'],
@@ -299,7 +285,7 @@ class RoomGeneratorService
             'template_data' => json_encode(['template' => $templateName]),
         ]);
         
-        // Create children if they exist
+        
         if (isset($template['children'])) {
             foreach ($template['children'] as $childName => $childTemplate) {
                 $this->createObjectFromTemplateData($roomId, $childName, $childTemplate, $object->id);
@@ -311,14 +297,14 @@ class RoomGeneratorService
     
     private function createObjectFromTemplateData($roomId, $objectName, $templateData, $parentId = null)
     {
-        // Randomize some properties if they are arrays
+        
         foreach ($templateData as $key => $value) {
             if (is_array($value) && !in_array($key, ['children'])) {
                 $templateData[$key] = $value[array_rand($value)];
             }
         }
         
-        // Create the object
+        
         $object = GameObject::create([
             'name' => $objectName,
             'description' => $templateData['description'],
@@ -332,7 +318,7 @@ class RoomGeneratorService
             'puzzle_type' => $templateData['puzzle_type'] ?? null,
         ]);
         
-        // Create children if they exist
+        
         if (isset($templateData['children'])) {
             foreach ($templateData['children'] as $childName => $childTemplate) {
                 $this->createObjectFromTemplateData($roomId, $childName, $childTemplate, $object->id);
@@ -344,7 +330,7 @@ class RoomGeneratorService
     
     private function createDoor($fromRoomId, $toRoomId)
     {
-        // Create a door to the next room
+        
         GameObject::create([
             'name' => 'door to room' . $toRoomId,
             'description' => 'A door that leads to the next room.',
@@ -355,7 +341,7 @@ class RoomGeneratorService
             'is_locked' => true,
         ]);
         
-        // Create a door back to the previous room (always unlocked)
+        
         if ($fromRoomId > 1) {
             GameObject::create([
                 'name' => 'door to room' . $fromRoomId,
@@ -384,7 +370,7 @@ class RoomGeneratorService
     
     private function createKey($roomId, $forRoomId)
     {
-        // Try to find a suitable container that's not locked and is visible
+        
         $containers = GameObject::where('room_id', $roomId)
             ->where('type', 'container')
             ->where('is_locked', false)
@@ -393,27 +379,27 @@ class RoomGeneratorService
         
         $parentId = null;
         
-        // If we have suitable containers, randomly choose one
+        
         if ($containers->count() > 0) {
             $container = $containers->random();
             $parentId = $container->id;
         }
         
-        // Create the key - always visible and takeable
+        
         GameObject::create([
             'name' => 'key' . $forRoomId,
             'description' => 'A key with the number ' . $forRoomId . ' engraved on it.',
             'room_id' => $roomId,
             'parent_id' => $parentId,
             'type' => 'key',
-            'is_visible' => true, // Always visible
+            'is_visible' => true, 
             'is_takeable' => true,
         ]);
         
-        // As a backup, create a hint in the room description about where to find the key
+        
         $room = Room::find($roomId);
         if ($room) {
-            // Only add hint if it doesn't already contain one
+            
             if (!str_contains($room->description, 'key')) {
                 $room->description .= ' There might be a key somewhere in this room.';
                 $room->save();
@@ -423,7 +409,7 @@ class RoomGeneratorService
     
     private function createGoldenKey($roomId)
     {
-        // Try to find a suitable container that's visible (might be locked)
+        
         $containers = GameObject::where('room_id', $roomId)
             ->where('type', 'container')
             ->where('is_visible', true)
@@ -431,27 +417,27 @@ class RoomGeneratorService
         
         $parentId = null;
         
-        // If we have suitable containers, randomly choose one
+        
         if ($containers->count() > 0) {
             $container = $containers->random();
             $parentId = $container->id;
             
-            // Container with golden key should be locked but not too difficult to find
+            
             if ($container->is_locked) {
-                // Make sure there's a hint about the locked container
+                
                 $room = Room::find($roomId);
                 if ($room && !str_contains($room->description, 'locked')) {
                     $room->description .= ' There\'s a locked container here that might hold something valuable.';
                     $room->save();
                 }
             } else {
-                // If container wasn't locked, lock it to make the golden key a bit more challenging
+                
                 $container->is_locked = true;
                 $container->save();
             }
         }
         
-        // Create the golden key - always visible once container is unlocked
+        
         GameObject::create([
             'name' => 'golden key',
             'description' => 'A beautiful golden key that seems important. It will likely open the final exit.',
@@ -462,7 +448,7 @@ class RoomGeneratorService
             'is_takeable' => true,
         ]);
         
-        // If we couldn't find a container, add a hint to help the player
+        
         if (!$parentId) {
             $room = Room::find($roomId);
             if ($room) {

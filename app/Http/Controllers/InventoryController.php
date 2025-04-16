@@ -21,6 +21,10 @@ class InventoryController extends Controller
         $inventoryItems = Inventory::where('player_session_id', $playerSession->id)
             ->with('gameObject')
             ->get();
+
+            if (!$inventoryItems) {
+                return response()->json(['error' => 'Geen items in inventory gevonden.'], 404);
+            }
         
         $items = $inventoryItems->map(function($item) {
             return [
