@@ -15,16 +15,16 @@ class InventoryController extends Controller
         $playerSession = $this->getPlayerSession($request);
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
         }
         
         $inventoryItems = Inventory::where('player_session_id', $playerSession->id)
             ->with('gameObject')
             ->get();
 
-            if (!$inventoryItems) {
-                return response()->json(['error' => 'Geen items in inventory gevonden.'], 404);
-            }
+        if (!$inventoryItems) {
+            return response()->json(['error' => 'Geen items in inventaris gevonden.'], 404);
+        }
         
         $items = $inventoryItems->map(function($item) {
             return [
@@ -34,51 +34,56 @@ class InventoryController extends Controller
         });
         
         return response()->json([
-            'inventory' => $items
+            'inventaris' => $items
         ]);
     }
     
-    public function takeItem(Request $request, $roomId, $objectName, $subObjectName, $itemName)
+    public function takeItem(Request $request, $roomId, $objectName, $itemName)
     {
         $playerSession = $this->getPlayerSession($request);
-        $room = Room::find($playerSession->current_room_id);
-        $room_Id = $room->id;
-
+        
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
         }
         
-        if ($playerSession->current_room_id != $room_Id) {
-            return response()->json(['error' => 'You need to be in the room to take items.'], 403);
+        if ($playerSession->current_room_id != $roomId) {
+            return response()->json(['error' => 'Je moet in de kamer zijn om items op te pakken.'], 403);
         }
         
-        $parentObject = GameObject::where('room_id', $room_Id)
+        
+        $parentObject = GameObject::where('room_id', $roomId)
             ->where('name', $objectName)
             ->where('is_visible', true)
             ->first();
-        
+            
         if (!$parentObject) {
-            return response()->json(['error' => "Object '{$objectName}' not found in this room."], 404);
+            return response()->json(['error' => "Het object '{$objectName}' is niet gevonden in deze kamer."], 404);
         }
         
-        $subObject = GameObject::where('parent_id', $parentObject->id)
-            ->where('name', $subObjectName)
-            ->where('is_visible', true)
-            ->first();
         
-        if (!$subObject) {
-            return response()->json(['error' => "Sub-object '{$subObjectName}' not found in '{$objectName}'."], 404);
+        if ($parentObject->is_locked) {
+            return response()->json(['error' => "'{$objectName}' is vergrendeld. Je moet het eerst openen."], 403);
         }
         
-        $item = GameObject::where('parent_id', $subObject->id)
+        
+        $item = GameObject::where('parent_id', $parentObject->id)
             ->where('name', $itemName)
             ->where('is_visible', true)
             ->where('is_takeable', true)
             ->first();
-        
+            
         if (!$item) {
-            return response()->json(['error' => "Item '{$itemName}' not found or cannot be taken."], 404);
+            return response()->json(['error' => "Item '{$itemName}' is niet gevonden in/op '{$objectName}' of kan niet worden opgepakt."], 404);
         }
+        
+        if ($item->is_taken) {
+            return response()->json(['error' => "Dit item is al opgepakt."], 400);
+        }
+        
+        
+        $item->is_taken = true;
+        $item->save();
+        
         
         Inventory::create([
             'player_session_id' => $playerSession->id,
@@ -86,61 +91,66 @@ class InventoryController extends Controller
             'acquired_at' => now()
         ]);
         
-        $item->is_visible = false;
-        $item->is_taken = true;
-        $item->save();
-        
-        $inventoryItems = Inventory::where('player_session_id', $playerSession->id)
-            ->with('gameObject')
-            ->get()
-            ->pluck('gameObject.name');
-        
         return response()->json([
-            'message' => "You have taken the {$itemName}!",
-            'inventory' => $inventoryItems
+            'message' => "Je hebt '{$itemName}' in je inventaris gestopt.",
+            'item' => [
+                'name' => $item->name,
+                'description' => $item->description
+            ]
         ]);
     }
     
     public function takeItemFromContainer(Request $request, $roomId, $objectName, $itemName)
     {
         $playerSession = $this->getPlayerSession($request);
-        $room = Room::find($playerSession->current_room_id);
-        $room_Id = $room->id;
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
         }
         
-        if ($playerSession->current_room_id != $room_Id) {
-            return response()->json(['error' => 'You need to be in the room to take items.'], 403);
+        if ($playerSession->current_room_id != $roomId) {
+            return response()->json(['error' => 'Je moet in de kamer zijn om items op te pakken.'], 403);
         }
         
+        $room = Room::find($roomId);
         
-        $container = GameObject::where('room_id', $room_Id)
+        if (!$room) {
+            $room = Room::where('name', 'room' . $roomId)->first();
+        }
+        
+        if (!$room) {
+            return response()->json(['error' => "Kamer {$roomId} niet gevonden."], 404);
+        }
+        
+        $container = GameObject::where('room_id', $room->id)
             ->where('name', $objectName)
             ->where('is_visible', true)
             ->first();
-        
+            
         if (!$container) {
-            return response()->json(['error' => "Object '{$objectName}' not found in this room."], 404);
+            return response()->json(['error' => "Container '{$objectName}' niet gevonden in deze kamer."], 404);
         }
         
+        if ($container->is_locked) {
+            return response()->json(['error' => "'{$objectName}' is vergrendeld. Je moet het eerst openen."], 403);
+        }
         
         $item = GameObject::where('parent_id', $container->id)
             ->where('name', $itemName)
             ->where('is_visible', true)
             ->where('is_takeable', true)
             ->first();
-        
+            
         if (!$item) {
-            return response()->json(['error' => "Item '{$itemName}' not found in the {$objectName} or cannot be taken."], 404);
+            return response()->json(['error' => "Item '{$itemName}' niet gevonden in '{$objectName}' of kan niet worden opgepakt."], 404);
         }
         
-        
-        if ($container->is_locked) {
-            return response()->json(['error' => "The {$objectName} is locked. You need to unlock it first."], 403);
+        if ($item->is_taken) {
+            return response()->json(['error' => "Dit item is al opgepakt."], 400);
         }
         
+        $item->is_taken = true;
+        $item->save();
         
         Inventory::create([
             'player_session_id' => $playerSession->id,
@@ -148,20 +158,12 @@ class InventoryController extends Controller
             'acquired_at' => now()
         ]);
         
-        
-        $item->is_visible = false;
-        $item->is_taken = true;
-        $item->save();
-        
-        
-        $inventoryItems = Inventory::where('player_session_id', $playerSession->id)
-            ->with('gameObject')
-            ->get()
-            ->pluck('gameObject.name');
-        
         return response()->json([
-            'message' => "You have taken the {$itemName} from the {$objectName}!",
-            'inventory' => $inventoryItems
+            'message' => "Je hebt '{$itemName}' uit '{$objectName}' in je inventaris gestopt.",
+            'item' => [
+                'name' => $item->name,
+                'description' => $item->description
+            ]
         ]);
     }
     
