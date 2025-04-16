@@ -29,7 +29,7 @@ class RoomController extends Controller
         
         
         if (empty($rooms)) {
-            return response()->json(['error' => 'Kamers genereren mislukt'], 500);
+            return response()->json(['error' => 'Kamer genereren mislukt'], 500);
         }
         
         $firstRoom = $rooms[0];
@@ -45,12 +45,12 @@ class RoomController extends Controller
         ]);
         
         return response()->json([
-            'message' => 'Nieuw spel gestart',
+            'message' => 'Nieuw game gestart',
             'session_token' => $sessionToken,
             'current_room' => $firstRoom->name,
             'description' => $firstRoom->description,
             'room_count' => count($rooms),
-            'tip' => 'Bewaar deze token in de headers als je verder wilt spelen',
+            'tip' => 'Hou deze token in de headers als je verder wilt spelen',
         ]);
     }
     
@@ -59,7 +59,7 @@ class RoomController extends Controller
         $playerSession = $this->getPlayerSession($request);
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Start een spel via api/start-game.'], 401);
+            return response()->json(['error' => 'Start een game api/start-game.'], 401);
         }
         
         $room = null;
@@ -71,7 +71,7 @@ class RoomController extends Controller
         }
         
         if (!$room) {
-            return response()->json(['error' => "Kamer {$roomId} niet gevonden."], 404);
+            return response()->json(['error' => "kamer {$roomId} niet gevonden."], 404);
         }
         
         if (!$this->canAccessRoom($playerSession, $room->id)) {
@@ -86,12 +86,12 @@ class RoomController extends Controller
         $objectList = $objects->map(function($object) {
             if ($object->type === 'door' && $object->name !== 'exit door') {
                 if ($object->is_locked) {
-                    return 'vergrendelde deur';
+                    return 'locked door';
                 } else {
-                    return 'deur';
+                    return 'door';
                 }
             } else if ($object->type === 'door' && $object->is_locked) {
-                return $object->name . ' (vergrendeld)';
+                return $object->name . ' (locked)';
             }
             return $object->name;
         });
@@ -103,7 +103,7 @@ class RoomController extends Controller
         
         $hints = [];
         if ($room->is_final_room) {
-            $hints[] = "Dit lijkt de laatste kamer te zijn. Vind een manier om te ontsnappen.";
+            $hints[] = "This appears to be the final room. Find a way to escape!";
         }
         
         $puzzles = GameObject::where('room_id', $room->id)
@@ -113,14 +113,14 @@ class RoomController extends Controller
             ->get();
             
         if ($puzzles->count() > 0) {
-            $hints[] = "Er zijn puzzels in deze kamer. Onderzoek voorwerpen goed.";
+            $hints[] = "There might be puzzles to solve in this room. Examine objects carefully.";
         }
         
         return response()->json([
-            'kamer' => $room->name,
-            'beschrijving' => $room->description,
-            'objecten' => $objectList,
-            'tips' => $hints
+            'room' => $room->name,
+            'description' => $room->description,
+            'objects' => $objectList,
+            'hints' => $hints
         ]);
     }
     
@@ -129,7 +129,7 @@ class RoomController extends Controller
         $playerSession = $this->getPlayerSession($request);
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
+            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
         }
         
         $currentRoomId = $playerSession->current_room_id;
@@ -147,14 +147,14 @@ class RoomController extends Controller
         }
         
         if (!$nextRoom) {
-            return response()->json(['error' => "Kamer {$nextRoomId} niet gevonden."], 404);
+            return response()->json(['error' => "Room {$nextRoomId} not found."], 404);
         }
         
         $adjacentRooms = json_decode($currentRoom->adjacent_rooms, true) ?? [];
         
         
         if (!in_array($nextRoom->id, $adjacentRooms)) {
-            return response()->json(['error' => 'Deze kamer is niet toegankelijk vanaf je huidige locatie.'], 400);
+            return response()->json(['error' => 'This room is not accessible from your current location.'], 400);
         }
         
         
@@ -186,7 +186,7 @@ class RoomController extends Controller
                     
                 if (!$hasKey) {
                     return response()->json([
-                        'error' => 'De deur is op slot. Vind een sleutel!',
+                        'error' => 'The door is locked. Find a key!',
                         'current_room' => $currentRoom->name
                     ], 403);
                 }
@@ -218,7 +218,7 @@ class RoomController extends Controller
                 
                 if (!$keyFound) {
                     return response()->json([
-                        'error' => 'De deur is op slot. Vind de juiste sleutel!',
+                        'error' => 'The door is locked. Find the right key!',
                         'current_room' => $currentRoom->name
                     ], 403);
                 }
@@ -229,9 +229,9 @@ class RoomController extends Controller
         $playerSession->save();
         
         return response()->json([
-            'message' => "Je hebt {$nextRoom->name} geopend!",
+            'message' => "You have opened {$nextRoom->name}!",
             'current_room' => $nextRoom->name,
-            'beschrijving' => $nextRoom->description
+            'description' => $nextRoom->description
         ]);
     }
     
@@ -240,13 +240,13 @@ class RoomController extends Controller
         $playerSession = $this->getPlayerSession($request);
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
+            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
         }
         
         $currentRoom = Room::find($playerSession->current_room_id);
         
         if (!$currentRoom->is_final_room) {
-            return response()->json(['error' => 'Je moet eerst de laatste kamer bereiken.'], 403);
+            return response()->json(['error' => 'You need to reach the final room first!'], 403);
         }
         
         $exitDoor = GameObject::where('room_id', $currentRoom->id)
@@ -267,42 +267,38 @@ class RoomController extends Controller
                     })
                     ->exists();
                     
-                if (!$hasGoldenKey) {
+                if ($hasGoldenKey) {
+                    
+                    $exitDoor->is_locked = false;
+                    $exitDoor->save();
+                } else {
+                    
+                    $emergencyKey = GameObject::create([
+                        'name' => 'emergency golden key',
+                        'description' => 'A shining golden key that appeared mysteriously. It looks like it will fit the exit door.',
+                        'room_id' => $currentRoom->id,
+                        'type' => 'key',
+                        'is_visible' => true,
+                        'is_takeable' => true,
+                    ]);
+                    
+                    
+                    Inventory::create([
+                        'player_session_id' => $playerSession->id,
+                        'game_object_id' => $emergencyKey->id,
+                        'acquired_at' => now()
+                    ]);
+                    
                     return response()->json([
-                        'error' => 'De uitgangsdeur is op slot! Je hebt een gouden sleutel nodig om te ontsnappen.',
-                        'hint' => 'Gebruik het cheat code eindpunt als je vastloopt.'
-                    ], 403);
+                        'message' => 'You found an emergency golden key! Use it to unlock the exit door.',
+                        'hint' => 'Try using the finish-game endpoint again now that you have the key.'
+                    ]);
                 }
+            } else {
                 
                 $exitDoor->is_locked = false;
                 $exitDoor->save();
-            } else {
-                
-                $emergencyKey = GameObject::create([
-                    'name' => 'emergency golden key',
-                    'description' => 'Een gouden sleutel die mysterieus verscheen. Het lijkt erop dat hij past op de uitgang.',
-                    'room_id' => $currentRoom->id,
-                    'type' => 'key',
-                    'is_visible' => true,
-                    'is_takeable' => true,
-                ]);
-                
-                
-                Inventory::create([
-                    'player_session_id' => $playerSession->id,
-                    'game_object_id' => $emergencyKey->id,
-                    'acquired_at' => now()
-                ]);
-                
-                return response()->json([
-                    'message' => 'Je hebt een noodsleutel gevonden. Gebruik deze om de uitgang te openen.',
-                    'hint' => 'Probeer het finish-game eindpunt opnieuw nu je de sleutel hebt.'
-                ]);
             }
-        } else {
-            
-            $exitDoor->is_locked = false;
-            $exitDoor->save();
         }
         
         $playerSession->end_time = now();
@@ -312,9 +308,9 @@ class RoomController extends Controller
         $duration = $playerSession->end_time->diffInMinutes($playerSession->start_time);
         
         return response()->json([
-            'message' => "Gefeliciteerd! Je bent ontsnapt uit de kamers!",
-            'tijd_besteed' => $duration . ' minuten',
-            'kamers_verkend' => Room::count()
+            'message' => "Congratulations! You've escaped the rooms!",
+            'time_taken' => $duration . ' minutes',
+            'rooms_explored' => Room::count()
         ]);
     }
     
@@ -323,7 +319,7 @@ class RoomController extends Controller
         $playerSession = $this->getPlayerSession($request);
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
+            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
         }
         
         $cheatCode = $request->get('code');
@@ -334,7 +330,7 @@ class RoomController extends Controller
             $finalRoom = Room::where('is_final_room', true)->first();
             
             if (!$finalRoom) {
-                return response()->json(['error' => 'Geen laatste kamer gevonden. Probeer een nieuw spel te starten.'], 500);
+                return response()->json(['error' => 'No final room found. Try starting a new game.'], 500);
             }
             
             
@@ -377,7 +373,7 @@ class RoomController extends Controller
             if (!$hasGoldenKey) {
                 $emergencyKey = GameObject::create([
                     'name' => 'cheat golden key',
-                    'description' => 'Een magische gouden sleutel opgeroepen door je cheat code!',
+                    'description' => 'A magical golden key conjured by your cheat code!',
                     'room_id' => $finalRoom->id,
                     'type' => 'key',
                     'is_visible' => true,
@@ -392,15 +388,15 @@ class RoomController extends Controller
             }
 
             return response()->json([
-                'message' => 'CHEAT CODE GEACTIVEERD!',
-                'details' => 'Je bent geteleporteerd naar de laatste kamer met alle sleutels in je inventaris.',
-                'volgende_stappen' => 'Gebruik het finish-game eindpunt om het spel nu te voltooien!',
+                'message' => 'CHEAT CODE ACTIVATED!',
+                'details' => 'You have been teleported to the final room with all keys in your inventory.',
+                'next_steps' => 'Use the finish-game endpoint to complete the game now!',
                 'current_room' => $finalRoom->name,
-                'beschrijving' => $finalRoom->description
+                'description' => $finalRoom->description
             ]);
         } else {
             return response()->json([
-                'message' => 'Ongeldige cheat code. Probeer een van deze: "escape", "letmeout", of "finishgame"'
+                'message' => 'Invalid cheat code. Try one of these: "escape", "letmeout", or "finishgame"'
             ], 400);
         }
     }
