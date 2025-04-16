@@ -10,163 +10,119 @@ use App\Models\Inventory;
 
 class GameObjectController extends Controller
 {
-    public function lookObject(Request $request, $roomId, $objectName)
+    public function lookObject(Request  $request, $roomId, $objectName)
     {
         $playerSession = $this->getPlayerSession($request);
-        
+        $room = Room::find($playerSession->current_room_id);
+        $room_Id = $room->id;
+
         if (!$playerSession) {
-            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
+            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+        }
+
+        if ($playerSession->current_room_id != $room_Id) {
+            return response()->json(['error' => 'You need to be in the room to look at objects.'], 403);
         }
         
-        if ($playerSession->current_room_id != $roomId) {
-            return response()->json(['error' => 'Je moet in de kamer zijn om objecten te bekijken.'], 403);
-        }
-        
-        $room = Room::find($roomId);
-        
-        if (!$room) {
-            $room = Room::where('name', 'room' . $roomId)->first();
-        }
-        
-        if (!$room) {
-            return response()->json(['error' => "Kamer {$roomId} niet gevonden."], 404);
-        }
-        
-        $object = GameObject::where('room_id', $room->id)
+        $object = GameObject::where('room_id', $room_Id)
             ->where('name', $objectName)
             ->where('is_visible', true)
             ->first();
-            
-        if (!$object) {
-            return response()->json(['error' => "Object '{$objectName}' niet gevonden in deze kamer."], 404);
-        }
         
+        if (!$object) {
+            return response()->json(['error' => "Object '{$objectName}' not found in this room."], 404);
+        }
         
         $childObjects = GameObject::where('parent_id', $object->id)
             ->where('is_visible', true)
             ->get();
-            
-        $childObjectList = $childObjects->map(function($childObject) {
-            return $childObject->name;
-        });
         
+        $response = [
+            'location' => $object->name,
+            'description' => $object->description
+        ];
         
-        $description = $object->description;
-        
-        
-        if ($object->type === 'door' && $object->is_locked) {
-            $description .= " De deur is op slot.";
-        } else if ($object->type === 'door' && !$object->is_locked) {
-            $description .= " De deur is niet op slot.";
+        if ($childObjects->count() > 0) {
+            $response['objects'] = $childObjects->pluck('name');
+        } else if ($object->type === 'container') {
+            $response['objects'] = [];
+            $response['message'] = 'This ' . $object->name . ' appears to be empty.';
         }
         
-        
-        if ($object->type === 'container' && $object->is_locked) {
-            $description .= " Het is vergrendeld.";
-        }
-        
-        
-        if ($object->puzzle_type && !$object->puzzle_solved) {
-            $description .= " Er lijkt een puzzel mee verbonden te zijn.";
-            
-            
-            if ($object->puzzle_hint) {
-                $description .= " Hint: " . $object->puzzle_hint;
-            }
-        }
-        
-        
-        $message = "Je bekijkt {$objectName}.";
-        
-        return response()->json([
-            'message' => $message,
-            'object' => [
-                'naam' => $object->name,
-                'beschrijving' => $description,
-                'type' => $object->type,
-                'is_vergrendeld' => $object->is_locked,
-                'is_opneembaar' => $object->is_takeable,
-            ],
-            'bevat_items' => count($childObjectList) > 0 ? $childObjectList : null
-        ]);
+        return response()->json($response);
     }
     
+
     public function lookSubObject(Request $request, $roomId, $objectName, $subObjectName)
     {
         $playerSession = $this->getPlayerSession($request);
+        $room = Room::find($playerSession->current_room_id);
+        $room_Id = $room->id;
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
+            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+        }
+
+        if ($playerSession->current_room_id != $room_Id) {
+            return response()->json(['error' => 'You need to be in the room to look at objects.'], 403);
         }
         
-        if ($playerSession->current_room_id != $roomId) {
-            return response()->json(['error' => 'Je moet in de kamer zijn om objecten te bekijken.'], 403);
-        }
-        
-        $room = Room::find($roomId);
-        
-        if (!$room) {
-            $room = Room::where('name', 'room' . $roomId)->first();
-        }
-        
-        if (!$room) {
-            return response()->json(['error' => "Kamer {$roomId} niet gevonden."], 404);
-        }
-        
-        $parentObject = GameObject::where('room_id', $room->id)
+        $parentObject = GameObject::where('room_id', $room_Id)
             ->where('name', $objectName)
             ->where('is_visible', true)
             ->first();
-            
+        
         if (!$parentObject) {
-            return response()->json(['error' => "Object '{$objectName}' niet gevonden in deze kamer."], 404);
-        }
-        
-        
-        if ($parentObject->is_locked) {
-            return response()->json(['error' => "'{$objectName}' is vergrendeld. Je moet het eerst openen."], 403);
+            return response()->json(['error' => "Object '{$objectName}' not found in this room."], 404);
         }
         
         $subObject = GameObject::where('parent_id', $parentObject->id)
             ->where('name', $subObjectName)
             ->where('is_visible', true)
             ->first();
-            
+        
         if (!$subObject) {
-            return response()->json(['error' => "Object '{$subObjectName}' niet gevonden in/op '{$objectName}'."], 404);
+            return response()->json(['error' => "Sub-object '{$subObjectName}' not found in '{$objectName}'."], 404);
         }
         
-        
-        $childObjects = GameObject::where('parent_id', $subObject->id)
+        $containedItems = GameObject::where('parent_id', $subObject->id)
             ->where('is_visible', true)
             ->get();
-            
-        $childObjectList = $childObjects->map(function($childObject) {
-            return $childObject->name;
-        });
         
+        $response = [
+            'location' => "{$parentObject->name} - {$subObject->name}",
+            'description' => $subObject->description
+        ];
         
-        $description = $subObject->description;
-        
-        
-        if ($subObject->type === 'container' && $subObject->is_locked) {
-            $description .= " Het is vergrendeld.";
+        if ($containedItems->count() > 0) {
+            $response['objects'] = $containedItems->pluck('name');
+        } else if ($subObject->type === 'container') {
+            $response['objects'] = [];
+            $response['message'] = 'This ' . $subObject->name . ' appears to be empty.';
         }
         
+        if ($subObject->has_hidden_items && !$subObject->revealed_hidden) {
+            $hiddenItems = GameObject::where('parent_id', $subObject->id)
+                ->where('is_visible', false)
+                ->get();
+                
+            if ($hiddenItems->count() > 0) {
+                foreach ($hiddenItems as $item) {
+                    $item->is_visible = true;
+                    $item->save();
+                }
+                
+                $subObject->revealed_hidden = true;
+                $subObject->save();
+                
+                $response['message'] = 'You found something hidden!';
+                $response['objects'] = GameObject::where('parent_id', $subObject->id)
+                    ->where('is_visible', true)
+                    ->pluck('name');
+            }
+        }
         
-        $message = "Je bekijkt {$subObjectName} in/op {$objectName}.";
-        
-        return response()->json([
-            'message' => $message,
-            'object' => [
-                'naam' => $subObject->name,
-                'beschrijving' => $description,
-                'type' => $subObject->type,
-                'is_vergrendeld' => $subObject->is_locked,
-                'is_opneembaar' => $subObject->is_takeable,
-            ],
-            'bevat_items' => count($childObjectList) > 0 ? $childObjectList : null
-        ]);
+        return response()->json($response);
     }
     
     private function getPlayerSession(Request $request)
