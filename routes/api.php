@@ -31,3 +31,4 @@ Route::post('/room/{roomId}/{objectName}/solve-puzzle', [PuzzleController::class
 Route::post('/room/{roomId}/{objectName}/pull-lever', [PuzzleController::class, 'pullLever']);
 Route::post('/room/{roomId}/{objectName}/unlock', [PuzzleController::class, 'unlockWithKey']);
 Route::post('/room/{roomId}/{objectName}/enter-combination', [PuzzleController::class, 'enterCombination']);
+Route::post('/room/{roomId}/{objectName}/repair', [PuzzleController::class, 'repairKey']);

@@ -122,12 +122,24 @@ class RoomGeneratorService
             'difficulty' => [1, 4],
         ],
         'pattern' => [
-            'description' => '>generateA pattern that needs to be completed.',
+            'description' => 'A pattern that needs to be completed.',
             'difficulty' => [2, 4],
         ],
         'color_sequence' => [
             'description' => 'A sequence of colors that must be matched.',
             'difficulty' => [1, 3],
+        ],
+        'paper_code' => [
+            'description' => 'A code written on a paper that unlocks a safe.',
+            'difficulty' => [1, 2],
+        ],
+        'multi_paper_riddle' => [
+            'description' => 'Multiple papers with code fragments that must be combined.',
+            'difficulty' => [3, 5],
+        ],
+        'repair_key' => [
+            'description' => 'A broken key that needs to be repaired with glue.',
+            'difficulty' => [2, 3],
         ],
     ];
     
@@ -242,7 +254,28 @@ class RoomGeneratorService
         }
         
         
+        $hasRepairKeyPuzzle = false;
+
+        
+        if ($room->id === 1) {
+            $this->createPaperCodeSafePuzzle($room->id);
+        }
+
+        if ($room->is_final_room) {
+            $allRoomIds = Room::pluck('id')->toArray();
+            $this->createMultiPaperRiddlePuzzle($room->id, $allRoomIds);
+        }
+
         if (!$room->is_final_room) {
+            
+            if ($room->id > 1 && rand(1, 10) <= 4) {
+                $this->createRepairKeyPuzzle($room->id);
+                $hasRepairKeyPuzzle = true;
+            }
+        }
+        
+        
+        if (!$room->is_final_room && !$hasRepairKeyPuzzle) {
             $adjacentRooms = json_decode($room->adjacent_rooms, true);
             if (is_array($adjacentRooms)) {
                 foreach ($adjacentRooms as $adjRoomId) {
@@ -253,9 +286,11 @@ class RoomGeneratorService
             }
         } else {
             
-            $previousRoomId = $room->id - 1;
-            if ($previousRoomId > 0) {
-                $this->createGoldenKey($previousRoomId);
+            if ($room->is_final_room) {
+                $previousRoomId = $room->id - 1;
+                if ($previousRoomId > 0) {
+                    $this->createGoldenKey($previousRoomId);
+                }
             }
         }
     }
@@ -468,5 +503,283 @@ class RoomGeneratorService
             'is_visible' => true,
             'is_takeable' => true,
         ]);
+    }
+
+    private function createPaperCodeSafePuzzle($roomId)
+    {
+        
+        $safe = GameObject::create([
+            'name' => 'small safe',
+            'description' => 'A small safe with a combination lock. It looks important.',
+            'room_id' => $roomId,
+            'type' => 'container',
+            'is_visible' => true,
+            'is_takeable' => false,
+            'is_locked' => true,
+            'puzzle_type' => 'combination',
+            'has_hidden_items' => true,
+        ]);
+        
+        
+        $code = '';
+        for ($i = 0; $i < 4; $i++) {
+            $code .= rand(0, 9);
+        }
+        
+        
+        $safe->puzzle_solution = $code;
+        $safe->puzzle_hint = "You need to find the code written on a paper somewhere in this room.";
+        $safe->save();
+        
+        
+        $containers = GameObject::where('room_id', $roomId)
+            ->where('type', 'container')
+            ->where('name', '!=', 'small safe')
+            ->get();
+            
+        $parentId = null;
+        if ($containers->count() > 0) {
+            $container = $containers->random();
+            $parentId = $container->id;
+        }
+        
+        
+        $paper = GameObject::create([
+            'name' => 'crumpled paper',
+            'description' => 'A crumpled piece of paper with the numbers ' . $code . ' written on it.',
+            'room_id' => $roomId,
+            'parent_id' => $parentId,
+            'type' => 'item',
+            'is_visible' => true,
+            'is_takeable' => true,
+        ]);
+        
+        
+        $adjacentRooms = json_decode(Room::find($roomId)->adjacent_rooms, true);
+        if (!empty($adjacentRooms)) {
+            foreach ($adjacentRooms as $adjRoomId) {
+                if ($adjRoomId > $roomId) {
+                    
+                    GameObject::create([
+                        'name' => 'key' . $adjRoomId,
+                        'description' => 'A key with the number ' . $adjRoomId . ' engraved on it.',
+                        'room_id' => $roomId,
+                        'parent_id' => $safe->id,
+                        'type' => 'key',
+                        'is_visible' => true,
+                        'is_takeable' => true,
+                    ]);
+                    break;
+                }
+            }
+        }
+        
+        
+        $room = Room::find($roomId);
+        $room->description .= ' You notice a safe in the corner and what appears to be a crumpled paper somewhere.';
+        $room->save();
+    }
+
+    private function createMultiPaperRiddlePuzzle($roomId, $allRoomIds)
+    {
+        
+        $codeDigits = [];
+        for ($i = 0; $i < 6; $i++) {
+            $codeDigits[] = rand(0, 9);
+        }
+        
+        $fullCode = implode('', $codeDigits);
+        $codePart1 = $codeDigits[0] . $codeDigits[1];
+        $codePart2 = $codeDigits[2] . $codeDigits[3];
+        $codePart3 = $codeDigits[4] . $codeDigits[5];
+        
+        
+        $exitDoor = GameObject::where('name', 'exit door')
+            ->where('room_id', $roomId)
+            ->first();
+            
+        if ($exitDoor) {
+            $exitDoor->puzzle_type = 'combination';
+            $exitDoor->puzzle_solution = $fullCode;
+            $exitDoor->puzzle_hint = "You need to find and combine the code fragments from three paper pieces scattered through the rooms.";
+            $exitDoor->save();
+        } else {
+            
+            $container = GameObject::create([
+                'name' => 'mysterious panel',
+                'description' => 'A panel with a 6-digit combination lock. It seems to be hiding something important.',
+                'room_id' => $roomId,
+                'type' => 'container',
+                'is_visible' => true,
+                'is_takeable' => false,
+                'is_locked' => true,
+                'puzzle_type' => 'combination',
+                'puzzle_solution' => $fullCode,
+                'puzzle_hint' => "You need to find and combine the code fragments from three paper pieces scattered through the rooms.",
+                'has_hidden_items' => true,
+            ]);
+            
+            
+            GameObject::create([
+                'name' => 'golden key',
+                'description' => 'A beautiful golden key that seems important. It will likely open the final exit.',
+                'room_id' => $roomId,
+                'parent_id' => $container->id,
+                'type' => 'key',
+                'is_visible' => true,
+                'is_takeable' => true,
+            ]);
+        }
+        
+        
+        $room = Room::find($roomId);
+        $room->description .= ' There seems to be some sort of puzzle here that requires code fragments written on papers.';
+        $room->save();
+        
+        
+        $placementRooms = $allRoomIds;
+        shuffle($placementRooms);
+        
+        
+        $this->createRiddlePaperPiece(
+            array_shift($placementRooms), 
+            'torn paper 1',
+            'A torn piece of paper with the numbers ' . $codePart1 . ' at the beginning of what seems like a sequence.'
+        );
+        
+        
+        $this->createRiddlePaperPiece(
+            array_shift($placementRooms), 
+            'torn paper 2',
+            'A torn piece of paper with the numbers ' . $codePart2 . ' that seems to be part of a sequence.'
+        );
+        
+        
+        $this->createRiddlePaperPiece(
+            array_shift($placementRooms),
+            'torn paper 3',
+            'A torn piece of paper with the numbers ' . $codePart3 . ' at the end of what seems like a sequence.'
+        );
+    }
+    
+    private function createRiddlePaperPiece($roomId, $name, $description)
+    {
+        
+        $containers = GameObject::where('room_id', $roomId)
+            ->where('type', 'container')
+            ->get();
+            
+        $parentId = null;
+        if ($containers->count() > 0) {
+            $container = $containers->random();
+            $parentId = $container->id;
+            
+            
+            $isVisible = (rand(0, 1) == 1);
+            
+            if (!$isVisible && $container->has_hidden_items === false) {
+                $container->has_hidden_items = true;
+                $container->save();
+            }
+        } else {
+            $isVisible = true;
+        }
+        
+        
+        GameObject::create([
+            'name' => $name,
+            'description' => $description,
+            'room_id' => $roomId,
+            'parent_id' => $parentId,
+            'type' => 'item',
+            'is_visible' => $isVisible,
+            'is_takeable' => true,
+        ]);
+        
+        
+        $room = Room::find($roomId);
+        if (!str_contains($room->description, 'paper')) {
+            $room->description .= ' There might be a piece of paper hidden somewhere in this room.';
+            $room->save();
+        }
+    }
+
+    private function createRepairKeyPuzzle($roomId)
+    {
+        
+        $brokenKey = GameObject::create([
+            'name' => 'broken key',
+            'description' => 'A key that has been broken into two pieces. It might be useful if repaired.',
+            'room_id' => $roomId,
+            'type' => 'item',
+            'is_visible' => true,
+            'is_takeable' => true,
+            'puzzle_type' => 'repair_key',
+            'puzzle_solution' => 'glue',
+        ]);
+        
+        
+        $containers = GameObject::where('room_id', $roomId)
+            ->where('type', 'container')
+            ->get();
+            
+        $parentId = null;
+        if ($containers->count() > 0) {
+            $container = $containers->random();
+            $parentId = $container->id;
+        }
+        
+        
+        GameObject::create([
+            'name' => 'glue',
+            'description' => 'A small tube of strong adhesive glue.',
+            'room_id' => $roomId,
+            'parent_id' => $parentId,
+            'type' => 'item',
+            'is_visible' => true,
+            'is_takeable' => true,
+        ]);
+        
+        
+        $adjacentRooms = json_decode(Room::find($roomId)->adjacent_rooms, true);
+        $targetRoomId = null;
+        
+        if (!empty($adjacentRooms)) {
+            foreach ($adjacentRooms as $adjRoomId) {
+                if ($adjRoomId > $roomId) {
+                    $targetRoomId = $adjRoomId;
+                    break;
+                }
+            }
+        }
+        
+        
+        if (!$targetRoomId) {
+            $allRooms = Room::where('id', '!=', $roomId)->get();
+            if ($allRooms->count() > 0) {
+                $targetRoomId = $allRooms->random()->id;
+            }
+        }
+        
+        
+        if ($targetRoomId) {
+            
+            GameObject::create([
+                'name' => "key{$targetRoomId}",
+                'description' => 'A key with the number ' . $targetRoomId . ' engraved on it.',
+                'room_id' => $roomId,
+                'type' => 'key',
+                'is_visible' => false,  
+                'is_takeable' => true,
+            ]);
+            
+            $brokenKey->puzzle_hint = "This key seems to have the number {$targetRoomId} partially visible on it. If fixed, it might open a door.";
+            $brokenKey->save();
+        }
+        
+        
+        $room = Room::find($roomId);
+        $room->description .= ' You notice what appears to be a broken key and possibly something to fix it.';
+        $room->save();
     }
 }

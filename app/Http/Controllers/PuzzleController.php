@@ -125,16 +125,16 @@ class PuzzleController extends Controller
             return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
         }
         
-        // Get the player's current room
+        
         $currentRoomId = $playerSession->current_room_id;
         
-        // Find the room the player is trying to interact with - support both IDs and names like "room3"
+        
         $targetRoom = null;
         
-        // First try direct ID lookup
+        
         $targetRoom = Room::find($roomId);
         
-        // If not found, try looking up by room name (if numeric ID was provided)
+        
         if (!$targetRoom && is_numeric($roomId)) {
             $targetRoom = Room::where('name', 'room' . $roomId)->first();
         }
@@ -143,12 +143,12 @@ class PuzzleController extends Controller
             return response()->json(['error' => "Room {$roomId} not found."], 404);
         }
         
-        // Check if the player is actually in the target room
+        
         if ($playerSession->current_room_id != $targetRoom->id) {
             return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
         }
         
-        // Find the object to unlock
+        
         $object = GameObject::where('room_id', $targetRoom->id)
             ->where('name', $objectName)
             ->where('is_visible', true)
@@ -290,6 +290,105 @@ class PuzzleController extends Controller
                 'hint' => $object->puzzle_hint
             ], 400);
         }
+    }
+    
+    public function repairKey(Request $request, $roomId, $objectName)
+    {
+        $playerSession = $this->getPlayerSession($request);
+        $room = Room::find($playerSession->current_room_id);
+        $room_Id = $room->id;
+
+        if (!$playerSession) {
+            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+        }
+        
+        if ($playerSession->current_room_id != $room_Id) {
+            return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
+        }
+        
+        
+        $brokenKey = GameObject::where('room_id', $room_Id)
+            ->where('name', $objectName)
+            ->where('is_visible', true)
+            ->where('puzzle_type', 'repair_key')
+            ->first();
+        
+        if (!$brokenKey) {
+            return response()->json(['error' => "Object '{$objectName}' not found or cannot be repaired."], 404);
+        }
+        
+        if ($brokenKey->puzzle_solved) {
+            return response()->json(['message' => "This key has already been repaired."], 200);
+        }
+        
+        
+        $glue = GameObject::where('name', 'glue')
+            ->where('type', 'item')
+            ->where('is_takeable', true)
+            ->first();
+        
+        if (!$glue) {
+            return response()->json(['error' => "You need glue to repair this key."], 404);
+        }
+        
+        $hasGlue = Inventory::where('player_session_id', $playerSession->id)
+            ->whereHas('gameObject', function($query) {
+                $query->where('name', 'glue');
+            })
+            ->exists();
+        
+        if (!$hasGlue) {
+            return response()->json(['error' => "You don't have any glue in your inventory. Find some glue first."], 400);
+        }
+        
+        
+        $targetRoomId = null;
+        if ($brokenKey->puzzle_hint) {
+            preg_match('/number\s+(\d+)/i', $brokenKey->puzzle_hint, $matches);
+            if (!empty($matches)) {
+                $targetRoomId = $matches[1];
+            }
+        }
+        
+        
+        $keyName = $targetRoomId ? "key{$targetRoomId}" : "key%";
+        $existingKey = GameObject::where('name', 'like', $keyName)
+            ->where('type', 'key')
+            ->where('is_visible', false) 
+            ->first();
+            
+        if (!$existingKey) {
+            
+            $keyName = $targetRoomId ? "key{$targetRoomId}" : "repaired key";
+            $existingKey = GameObject::create([
+                'name' => $keyName,
+                'description' => 'A repaired key that was previously broken.',
+                'room_id' => $roomId,
+                'type' => 'key',
+                'is_visible' => true,
+                'is_takeable' => true,
+            ]);
+        } else {
+            
+            $existingKey->is_visible = true;
+            $existingKey->save();
+        }
+        
+        
+        Inventory::create([
+            'player_session_id' => $playerSession->id,
+            'game_object_id' => $existingKey->id,
+            'acquired_at' => now()
+        ]);
+        
+        
+        $brokenKey->puzzle_solved = true;
+        $brokenKey->save();
+        
+        return response()->json([
+            'message' => "You successfully repaired the broken key using the glue!",
+            'reward' => "You now have a " . $existingKey->name . " in your inventory."
+        ]);
     }
     
     private function generateRandomCombination()

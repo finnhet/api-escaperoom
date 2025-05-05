@@ -3,7 +3,7 @@
     "_postman_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
     "name": "Escape Room API with Random Rooms",
     "description": "Collection for testing the enhanced escape room API with randomized rooms and puzzles",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "schema": "https:
   },
   "item": [
     {
@@ -302,6 +302,26 @@
             "description": "Solve a generic puzzle. Replace 'safe' with the object that has the puzzle."
           },
           "response": []
+        },
+        {
+          "name": "Repair Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{session_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/room/1/broken key/repair",
+              "host": ["{{base_url}}"],
+              "path": ["api", "room", "1", "broken key", "repair"]
+            },
+            "description": "Repair a broken key using glue. You need to have glue in your inventory first."
+          },
+          "response": []
         }
       ],
       "description": "APIs for solving puzzles"
@@ -335,7 +355,7 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "http://localhost:8000",
+      "value": "http:
       "type": "string"
     },
     {
