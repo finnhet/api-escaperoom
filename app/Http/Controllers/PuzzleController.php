@@ -390,8 +390,8 @@ class PuzzleController extends Controller
         $brokenKey->save();
         
         return response()->json([
-            'message' => "You successfully repaired the broken key using the glue!",
-            'reward' => "You now have a " . $existingKey->name . " in your inventory."
+            'message' => "Je hebt de gebroken sleutel gerepareerd",
+            'reward' => "Je hebt nu " . $existingKey->name . " in je inventory."
         ]);
     }
     
