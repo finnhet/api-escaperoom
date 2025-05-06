@@ -186,7 +186,7 @@ class RoomController extends Controller
                     
                 if (!$hasKey) {
                     return response()->json([
-                        'error' => 'The door is locked. Find a key!',
+                        'error' => 'De Deur zit op slot. Zoek de juiste sleutel',
                         'current_room' => $currentRoom->name
                     ], 403);
                 }
