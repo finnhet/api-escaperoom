@@ -70,57 +70,6 @@ class PuzzleController extends Controller
         }
     }
     
-    public function pullLever(Request $request, $roomId, $objectName)
-    {
-        $playerSession = $this->getPlayerSession($request);
-        $room = Room::find($playerSession->current_room_id);
-        $room_Id = $room->id;
-        
-        if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
-        }
-        
-        if ($playerSession->current_room_id != $room_Id) {
-            return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
-        }
-        
-        $lever = GameObject::where('room_id', $room_Id)
-            ->where('name', $objectName)
-            ->where('type', 'mechanism')
-            ->where('is_visible', true)
-            ->first();
-        
-        if (!$lever) {
-            return response()->json(['error' => "Lever '{$objectName}' not found in this room."], 404);
-        }
-        
-        
-        $hiddenObjects = GameObject::where('room_id', $room_Id)
-            ->where('is_visible', true)
-            ->get();
-            
-        $revealed = false;
-        
-        foreach ($hiddenObjects as $hiddenObject) {
-            
-            if (rand(1, 10) > 5) {
-                $hiddenObject->is_visible = true;
-                $hiddenObject->save();
-                $revealed = true;
-            }
-        }
-        
-        if ($revealed) {
-            return response()->json([
-                'message' => 'You pulled the lever and revealed something hidden in the room!'
-            ]);
-        } else {
-            return response()->json([
-                'message' => 'You pulled the lever, but nothing seems to have happened.'
-            ]);
-        }
-    }
-    
     public function unlockWithKey(Request $request, $roomId, $objectName)
     {
         $playerSession = $this->getPlayerSession($request);

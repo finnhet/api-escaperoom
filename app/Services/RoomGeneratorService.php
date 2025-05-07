@@ -72,13 +72,6 @@ class RoomGeneratorService
                     'is_visible' => true,
                     'is_takeable' => true,
                     'has_hidden_items' => true,
-                ],
-                'secret lever' => [
-                    'description' => 'A hidden lever behind some books.',
-                    'type' => 'mechanism',
-                    'is_visible' => false,
-                    'is_takeable' => false,
-                    'puzzle_type' => 'trigger',
                 ]
             ]
         ],
@@ -204,14 +197,32 @@ class RoomGeneratorService
         }
         
         
+        $minPuzzles = ceil($roomCount / 2);
+        $puzzleCount = 1;
+
+        if ($roomCount > 1) {
+            $puzzleCount++;
+        }
+        
+        $roomsWithoutPuzzles = [];
+        for ($i = 2; $i < $roomCount; $i++) {
+            $roomsWithoutPuzzles[] = $i;
+        }
+        
+        shuffle($roomsWithoutPuzzles);
+        
+        $additionalPuzzlesNeeded = max(0, $minPuzzles - $puzzleCount);
+        $roomsToGetPuzzles = array_slice($roomsWithoutPuzzles, 0, $additionalPuzzlesNeeded);
+        
         foreach ($rooms as $room) {
-            $this->generateRoomObjects($room);
+            $shouldHavePuzzle = $room->is_final_room || $room->id === 1 || in_array($room->id, $roomsToGetPuzzles);
+            $this->generateRoomObjects($room, $shouldHavePuzzle);
         }
         
         return $rooms;
     }
     
-    private function generateRoomObjects($room)
+    private function generateRoomObjects($room, $shouldHavePuzzle = false)
     {
         $objectCount = $room->is_final_room ? 4 : rand(2, 4);
         $templates = array_keys($this->objectTemplates);
@@ -254,17 +265,10 @@ class RoomGeneratorService
             $this->createPaperCodeSafePuzzle($room->id);
             $hasPuzzle = true;
         }
-        else if (rand(1, 10) > 7) { 
-            $adjacentRooms = json_decode($room->adjacent_rooms, true);
-            if (is_array($adjacentRooms)) {
-                foreach ($adjacentRooms as $adjRoomId) {
-                    if ($adjRoomId > $room->id) {
-                        $this->createRepairKeyPuzzle($room->id);
-                        $hasPuzzle = true;
-                        break;
-                    }
-                }
-            }
+        else if ($shouldHavePuzzle && !$hasPuzzle) { 
+            
+            $this->createRepairKeyPuzzle($room->id);
+            $hasPuzzle = true;
         }
     
         if (!$room->is_final_room && !$hasPuzzle) {
@@ -277,7 +281,7 @@ class RoomGeneratorService
                 }
             }
         }
-        // Golden key creation removed - using code from torn papers instead
+        
     }
     
     private function createObjectFromTemplate($roomId, $templateName, $parentId = null)
@@ -589,8 +593,8 @@ class RoomGeneratorService
             $exitDoor->puzzle_hint = "You need to find and combine the code fragments from three paper pieces scattered through the rooms.";
             $exitDoor->save();
         } else {
-            // No need to create a container with a golden key anymore
-            // Just make sure there's an exit door with the code lock
+            
+            
             $exitDoor = GameObject::create([
                 'name' => 'exit door',
                 'description' => 'A heavy door that appears to lead outside. It has a 6-digit combination lock.',
