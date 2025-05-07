@@ -11,7 +11,7 @@ use App\Http\Controllers\PuzzleController;
 
 Route::post('/start-game', [RoomController::class, 'startGame']);
 Route::post('/finish-game', [RoomController::class, 'finishGame']);
-Route::post('/cheat-code', [RoomController::class, 'useCheatCode']); // Add new cheat code endpoint
+Route::post('/cheat-code', [RoomController::class, 'useCheatCode']);
 
 
 Route::get('/room/{roomId}/look', [RoomController::class, 'lookRoom']);
