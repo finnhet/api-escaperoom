@@ -255,7 +255,7 @@ class RoomController extends Controller
             ->first();
             
         if ($exitDoor && $exitDoor->is_locked) {
-            // Exit door is locked and requires the code from torn papers
+            
             return response()->json([
                 'error' => 'The exit door is still locked. You need to enter the 6-digit code from the torn papers.',
                 'hint' => 'Find and collect all three torn paper pieces scattered throughout the rooms and combine their numbers to form the 6-digit code.'
@@ -274,7 +274,7 @@ class RoomController extends Controller
             'rooms_explored' => Room::count()
         ]);
     }
-    
+
     public function useCheatCode(Request $request)
     {
         $playerSession = $this->getPlayerSession($request);
@@ -282,10 +282,9 @@ class RoomController extends Controller
         if (!$playerSession) {
             return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
         }
-        
+
         $cheatCode = $request->get('code');
-        
-        
+
         if ($cheatCode == 'escape' || $cheatCode == 'letmeout' || $cheatCode == 'finishgame') {
             
             $finalRoom = Room::where('is_final_room', true)->first();
@@ -294,7 +293,6 @@ class RoomController extends Controller
                 return response()->json(['error' => 'No final room found. Try starting a new game.'], 500);
             }
             
-            // Add all normal keys to player inventory to open all doors
             $keys = GameObject::where('type', 'key')
                 ->where('name', 'not like', '%golden key%')
                 ->get();
@@ -312,15 +310,14 @@ class RoomController extends Controller
                     ]);
                 }
             }
-            
-            // Unlock all doors including the exit door
+
             $doors = GameObject::where('type', 'door')->get();
             foreach ($doors as $door) {
                 $door->is_locked = false;
                 $door->save();
             }
             
-            // Move player to final room
+            
             $playerSession->current_room_id = $finalRoom->id;
             $playerSession->save();
 
