@@ -255,50 +255,11 @@ class RoomController extends Controller
             ->first();
             
         if ($exitDoor && $exitDoor->is_locked) {
-            
-            $goldenKey = GameObject::where('name', 'golden key')
-                ->where('type', 'key')
-                ->first();
-                
-            if ($goldenKey) {
-                $hasGoldenKey = Inventory::where('player_session_id', $playerSession->id)
-                    ->whereHas('gameObject', function($query) {
-                        $query->where('name', 'golden key');
-                    })
-                    ->exists();
-                    
-                if ($hasGoldenKey) {
-                    
-                    $exitDoor->is_locked = false;
-                    $exitDoor->save();
-                } else {
-                    
-                    $emergencyKey = GameObject::create([
-                        'name' => 'emergency golden key',
-                        'description' => 'A shining golden key that appeared mysteriously. It looks like it will fit the exit door.',
-                        'room_id' => $currentRoom->id,
-                        'type' => 'key',
-                        'is_visible' => true,
-                        'is_takeable' => true,
-                    ]);
-                    
-                    
-                    Inventory::create([
-                        'player_session_id' => $playerSession->id,
-                        'game_object_id' => $emergencyKey->id,
-                        'acquired_at' => now()
-                    ]);
-                    
-                    return response()->json([
-                        'message' => 'You found an emergency golden key! Use it to unlock the exit door.',
-                        'hint' => 'Try using the finish-game endpoint again now that you have the key.'
-                    ]);
-                }
-            } else {
-                
-                $exitDoor->is_locked = false;
-                $exitDoor->save();
-            }
+            // Exit door is locked and requires the code from torn papers
+            return response()->json([
+                'error' => 'The exit door is still locked. You need to enter the 6-digit code from the torn papers.',
+                'hint' => 'Find and collect all three torn paper pieces scattered throughout the rooms and combine their numbers to form the 6-digit code.'
+            ], 403);
         }
         
         $playerSession->end_time = now();
@@ -333,12 +294,12 @@ class RoomController extends Controller
                 return response()->json(['error' => 'No final room found. Try starting a new game.'], 500);
             }
             
-            
-            $keys = GameObject::where('type', 'key')->get();
-            
+            // Add all normal keys to player inventory to open all doors
+            $keys = GameObject::where('type', 'key')
+                ->where('name', 'not like', '%golden key%')
+                ->get();
             
             foreach ($keys as $key) {
-                
                 $hasKey = Inventory::where('player_session_id', $playerSession->id)
                     ->where('game_object_id', $key->id)
                     ->exists();
@@ -352,44 +313,20 @@ class RoomController extends Controller
                 }
             }
             
-            
+            // Unlock all doors including the exit door
             $doors = GameObject::where('type', 'door')->get();
             foreach ($doors as $door) {
                 $door->is_locked = false;
                 $door->save();
             }
             
-            
+            // Move player to final room
             $playerSession->current_room_id = $finalRoom->id;
             $playerSession->save();
-            
-            
-            $hasGoldenKey = Inventory::where('player_session_id', $playerSession->id)
-                ->whereHas('gameObject', function($query) {
-                    $query->where('name', 'like', '%golden key%');
-                })
-                ->exists();
-                
-            if (!$hasGoldenKey) {
-                $emergencyKey = GameObject::create([
-                    'name' => 'cheat golden key',
-                    'description' => 'A magical golden key conjured by your cheat code!',
-                    'room_id' => $finalRoom->id,
-                    'type' => 'key',
-                    'is_visible' => true,
-                    'is_takeable' => true,
-                ]);
-                
-                Inventory::create([
-                    'player_session_id' => $playerSession->id,
-                    'game_object_id' => $emergencyKey->id,
-                    'acquired_at' => now()
-                ]);
-            }
 
             return response()->json([
                 'message' => 'CHEAT CODE ACTIVATED!',
-                'details' => 'You have been teleported to the final room with all keys in your inventory.',
+                'details' => 'You have been teleported to the final room and all doors have been unlocked.',
                 'next_steps' => 'Use the finish-game endpoint to complete the game now!',
                 'current_room' => $finalRoom->name,
                 'description' => $finalRoom->description

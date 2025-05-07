@@ -23,7 +23,7 @@ class GameObjectController extends Controller
         if ($playerSession->current_room_id != $room_Id) {
             return response()->json(['error' => 'You need to be in the room to look at objects.'], 403);
         }
-        
+ 
         $object = GameObject::where('room_id', $room_Id)
             ->where('name', $objectName)
             ->where('is_visible', true)
@@ -31,6 +31,10 @@ class GameObjectController extends Controller
         
         if (!$object) {
             return response()->json(['error' => "Object '{$objectName}' not found in this room."], 404);
+        }
+
+        if ($object->is_locked) {
+            return response()->json(['error' => 'This object is locked.'], 403);
         }
         
         $childObjects = GameObject::where('parent_id', $object->id)

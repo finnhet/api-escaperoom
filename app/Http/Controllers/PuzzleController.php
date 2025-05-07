@@ -73,16 +73,18 @@ class PuzzleController extends Controller
     public function pullLever(Request $request, $roomId, $objectName)
     {
         $playerSession = $this->getPlayerSession($request);
+        $room = Room::find($playerSession->current_room_id);
+        $room_Id = $room->id;
         
         if (!$playerSession) {
             return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
         }
         
-        if ($playerSession->current_room_id != $roomId) {
+        if ($playerSession->current_room_id != $room_Id) {
             return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
         }
         
-        $lever = GameObject::where('room_id', $roomId)
+        $lever = GameObject::where('room_id', $room_Id)
             ->where('name', $objectName)
             ->where('type', 'mechanism')
             ->where('is_visible', true)
@@ -93,8 +95,8 @@ class PuzzleController extends Controller
         }
         
         
-        $hiddenObjects = GameObject::where('room_id', $roomId)
-            ->where('is_visible', false)
+        $hiddenObjects = GameObject::where('room_id', $room_Id)
+            ->where('is_visible', true)
             ->get();
             
         $revealed = false;
