@@ -66,13 +66,27 @@ class RoomGeneratorService
             'is_visible' => true,
             'is_takeable' => false,
             'children' => [
-                'old book' => [
-                    'description' => 'An ancient looking book with strange symbols.',
+                'harry snotter' => [
+                    'description' => 'A book about a wizard named Harry Snotter.',
                     'type' => 'container',
                     'is_visible' => true,
-                    'is_takeable' => true,
+                    'is_takeable' => false,
                     'has_hidden_items' => true,
-                ]
+                ],
+                'warrior cats' => [
+                    'description' => 'A book about cats that are warriors.',
+                    'type' => 'container',
+                    'is_visible' => true,
+                    'is_takeable' => false,
+                    'has_hidden_items' => true,
+                ],
+                'The Communist Manifesto' => [
+                    'description' => 'A book about communism.',
+                    'type' => 'container',
+                    'is_visible' => true,
+                    'is_takeable' => false,
+                    'has_hidden_items' => true,
+                ]        
             ]
         ],
         'cabinet' => [
@@ -81,13 +95,57 @@ class RoomGeneratorService
             'is_visible' => true,
             'is_takeable' => false,
             'children' => [
-                'cabinet door' => [
+                'cabinet right door' => [
                     'description' => 'A cabinet door that can be opened.',
                     'type' => 'container',
                     'is_visible' => true,
                     'is_takeable' => false,
+                    'has_hidden_items' => true,
+                ],
+                'cabinet left door' => [
+                    'description' => 'A cabinet door that can be opened.',
+                    'type' => 'container',
+                    'is_visible' => true,
+                    'is_takeable' => false,
+                    'has_hidden_items' => true,
                 ]
             ]
+        ],
+        'trunk' => [
+            'description' => 'An old wooden trunk with a rusty lock.',
+            'type' => 'container',
+            'is_visible' => true,
+            'is_takeable' => false,
+            'has_hidden_items' => true,
+        ],
+        'wardrobe' => [
+            'description' => 'A tall wooden wardrobe with double doors.',
+            'type' => 'container',
+            'is_visible' => true,
+            'is_takeable' => false,
+            'children' => [
+            'wardrobe left door' => [
+                'description' => 'The left door of the wardrobe.',
+                'type' => 'container',
+                'is_visible' => true,
+                'is_takeable' => false,
+                'has_hidden_items' => true,
+            ],
+            'wardrobe right door' => [
+                'description' => 'The right door of the wardrobe.',
+                'type' => 'container',
+                'is_visible' => true,
+                'is_takeable' => false,
+                'has_hidden_items' => true,
+            ]
+            ]
+        ],
+        'chest' => [
+            'description' => 'A decorative chest with intricate carvings.',
+            'type' => 'container',
+            'is_visible' => true,
+            'is_takeable' => false,
+            'has_hidden_items' => true,
         ],
         'painting' => [
             'description' => 'A mysterious painting that seems to hide something.',
