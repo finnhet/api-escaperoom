@@ -50,7 +50,7 @@ class RoomController extends Controller
             'current_room' => $firstRoom->name,
             'description' => $firstRoom->description,
             'room_count' => count($rooms),
-            'tip' => 'Hou deze token in de headers als je verder wilt spelen',
+            'tip' => 'check alle objecten in de kamer mischien ligt er iets verborgen voor het einde.',
         ]);
     }
     

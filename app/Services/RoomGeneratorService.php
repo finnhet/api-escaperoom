@@ -653,7 +653,7 @@ class RoomGeneratorService
             $parentId = $container->id;
             
             
-            $isVisible = (rand(0, 1) == 1);
+            $isVisible = true;
             
             if (!$isVisible && $container->has_hidden_items === false) {
                 $container->has_hidden_items = true;
