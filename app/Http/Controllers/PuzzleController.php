@@ -17,11 +17,11 @@ class PuzzleController extends Controller
         $room_Id = $room->id;
 
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
         }
         
         if ($playerSession->current_room_id != $room_Id) {
-            return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
+            return response()->json(['error' => 'Je moet in de kamer zijn om met objecten te kunnen interacteren.'], 403);
         }
         
         $object = GameObject::where('room_id', $room_Id)
@@ -30,21 +30,21 @@ class PuzzleController extends Controller
             ->first();
         
         if (!$object) {
-            return response()->json(['error' => "Object '{$objectName}' not found in this room."], 404);
+            return response()->json(['error' => "Object '{$objectName}' niet gevonden in deze kamer."], 404);
         }
         
         if (!$object->puzzle_type) {
-            return response()->json(['error' => "This object doesn't have a puzzle to solve."], 400);
+            return response()->json(['error' => "Dit object heeft geen puzzel om op te lossen."], 400);
         }
         
         if ($object->puzzle_solved) {
-            return response()->json(['message' => "This puzzle has already been solved."], 200);
+            return response()->json(['message' => "Deze puzzel is al opgelost."], 200);
         }
         
         
         $solution = $request->get('solution');
         if (!$solution) {
-            return response()->json(['error' => "Please provide a solution."], 400);
+            return response()->json(['error' => "Geef alstublieft een oplossing."], 400);
         }
         
         $result = $this->checkPuzzleSolution($object, $solution);
@@ -58,13 +58,13 @@ class PuzzleController extends Controller
             $this->handlePuzzleRewards($object);
             
             return response()->json([
-                'message' => 'Puzzle solved successfully!',
+                'message' => 'Puzzel succesvol opgelost!',
                 'result' => $result['message'],
                 'reward' => $result['reward'] ?? null
             ]);
         } else {
             return response()->json([
-                'message' => 'That solution is incorrect.',
+                'message' => 'Die oplossing is niet correct.',
                 'hint' => $object->puzzle_hint
             ], 400);
         }
@@ -75,7 +75,7 @@ class PuzzleController extends Controller
         $playerSession = $this->getPlayerSession($request);
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
         }
         
         
@@ -93,12 +93,12 @@ class PuzzleController extends Controller
         }
         
         if (!$targetRoom) {
-            return response()->json(['error' => "Room {$roomId} not found."], 404);
+            return response()->json(['error' => "Kamer {$roomId} niet gevonden."], 404);
         }
         
         
         if ($playerSession->current_room_id != $targetRoom->id) {
-            return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
+            return response()->json(['error' => 'Je moet in de kamer zijn om met objecten te kunnen interacteren.'], 403);
         }
         
         
@@ -109,13 +109,13 @@ class PuzzleController extends Controller
             ->first();
         
         if (!$object) {
-            return response()->json(['error' => "Locked object '{$objectName}' not found in this room."], 404);
+            return response()->json(['error' => "Vergrendeld object '{$objectName}' niet gevonden in deze kamer."], 404);
         }
         
         $keyName = $request->get('key');
         
         if (!$keyName) {
-            return response()->json(['error' => "Please specify which key to use."], 400);
+            return response()->json(['error' => "Geef aan welke sleutel je wilt gebruiken."], 400);
         }
         
         
@@ -124,7 +124,7 @@ class PuzzleController extends Controller
             ->first();
             
         if (!$keyObject) {
-            return response()->json(['error' => "Key '{$keyName}' does not exist."], 404);
+            return response()->json(['error' => "Sleutel '{$keyName}' bestaat niet."], 404);
         }
         
         $hasKey = Inventory::where('player_session_id', $playerSession->id)
@@ -132,7 +132,7 @@ class PuzzleController extends Controller
             ->exists();
             
         if (!$hasKey) {
-            return response()->json(['error' => "You don't have this key in your inventory."], 403);
+            return response()->json(['error' => "Je hebt deze sleutel niet in je inventaris."], 403);
         }
         
         
@@ -171,11 +171,11 @@ class PuzzleController extends Controller
             }
             
             return response()->json([
-                'message' => "You unlocked the {$object->name} with the {$keyName}!"
+                'message' => "Je hebt de {$object->name} ontgrendeld met de {$keyName}!"
             ]);
         } else {
             return response()->json([
-                'message' => "The {$keyName} doesn't fit the {$object->name}."
+                'message' => "De {$keyName} past niet op de {$object->name}."
             ], 400);
         }
     }
@@ -187,11 +187,11 @@ class PuzzleController extends Controller
         $room_Id = $room->id;
 
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
         }
         
         if ($playerSession->current_room_id != $room_Id) {
-            return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
+            return response()->json(['error' => 'Je moet in de kamer zijn om met objecten te kunnen interacteren.'], 403);
         }
         
         $object = GameObject::where('room_id', $room_Id)
@@ -201,20 +201,20 @@ class PuzzleController extends Controller
             ->first();
         
         if (!$object) {
-            return response()->json(['error' => "Object '{$objectName}' not found or is not locked."], 404);
+            return response()->json(['error' => "Object '{$objectName}' niet gevonden of is niet vergrendeld."], 404);
         }
         
         $combination = $request->get('combination');
         
         if (!$combination) {
-            return response()->json(['error' => "Please provide a combination."], 400);
+            return response()->json(['error' => "Geef alstublieft een combinatie op."], 400);
         }
         
         
         if (!$object->puzzle_solution) {
             $solution = $this->generateRandomCombination();
             $object->puzzle_solution = $solution;
-            $object->puzzle_hint = "The combination is {$this->getHintForCombination($solution)}";
+            $object->puzzle_hint = "De combinatie is {$this->getHintForCombination($solution)}";
             $object->save();
         }
         
@@ -236,12 +236,12 @@ class PuzzleController extends Controller
             }
             
             return response()->json([
-                'message' => "The combination worked! The {$object->name} is now unlocked."
+                'message' => "De combinatie werkte! De {$object->name} is nu ontgrendeld."
             ]);
         } else {
             
             return response()->json([
-                'message' => "That combination didn't work.",
+                'message' => "Die combinatie werkte niet.",
                 'hint' => $object->puzzle_hint
             ], 400);
         }
@@ -254,11 +254,11 @@ class PuzzleController extends Controller
         $room_Id = $room->id;
 
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
         }
         
         if ($playerSession->current_room_id != $room_Id) {
-            return response()->json(['error' => 'You need to be in the room to interact with objects.'], 403);
+            return response()->json(['error' => 'Je moet in de kamer zijn om met objecten te kunnen interacteren.'], 403);
         }
         
         
@@ -269,11 +269,11 @@ class PuzzleController extends Controller
             ->first();
         
         if (!$brokenKey) {
-            return response()->json(['error' => "Object '{$objectName}' not found or cannot be repaired."], 404);
+            return response()->json(['error' => "Object '{$objectName}' niet gevonden of kan niet worden gerepareerd."], 404);
         }
         
         if ($brokenKey->puzzle_solved) {
-            return response()->json(['message' => "This key has already been repaired."], 200);
+            return response()->json(['message' => "Deze sleutel is al gerepareerd."], 200);
         }
         
         
@@ -283,7 +283,7 @@ class PuzzleController extends Controller
             ->first();
         
         if (!$glue) {
-            return response()->json(['error' => "You need glue to repair this key."], 404);
+            return response()->json(['error' => "Je hebt lijm nodig om deze sleutel te repareren."], 404);
         }
         
         $hasGlue = Inventory::where('player_session_id', $playerSession->id)
@@ -293,7 +293,7 @@ class PuzzleController extends Controller
             ->exists();
         
         if (!$hasGlue) {
-            return response()->json(['error' => "You don't have any glue in your inventory. Find some glue first."], 400);
+            return response()->json(['error' => "Je hebt geen lijm in je inventaris. Vind eerst wat lijm."], 400);
         }
         
         
@@ -363,10 +363,10 @@ class PuzzleController extends Controller
     {
         
         $hints = [
-            "a number with " . strlen($combination) . " digits",
-            "related to the number of objects in this room",
-            "hidden somewhere in plain sight",
-            "the sum of all digits is " . array_sum(str_split($combination))
+            "een getal met " . strlen($combination) . " cijfers",
+            "gerelateerd aan het aantal objecten in deze kamer",
+            "ergens in het zicht verborgen",
+            "de som van alle cijfers is " . array_sum(str_split($combination))
         ];
         
         return $hints[array_rand($hints)];
@@ -388,21 +388,21 @@ class PuzzleController extends Controller
         
         if ($solution == $object->puzzle_solution) {
             $rewards = [
-                "You found a hidden compartment!",
-                "A secret passage has been revealed!",
-                "You hear a click as something unlocks nearby.",
-                "A panel slides away, revealing something hidden."
+                "Je hebt een verborgen compartiment gevonden!",
+                "Een geheime doorgang is onthuld!",
+                "Je hoort een klik terwijl iets in de buurt ontgrendelt.",
+                "Een paneel schuift weg en onthult iets verborgens."
             ];
             
             return [
                 'success' => true,
-                'message' => "Puzzle solved successfully!",
+                'message' => "Puzzel succesvol opgelost!",
                 'reward' => $rewards[array_rand($rewards)]
             ];
         } else {
             return [
                 'success' => false,
-                'message' => "That solution is incorrect."
+                'message' => "Die oplossing is niet correct."
             ];
         }
     }

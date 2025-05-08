@@ -17,11 +17,11 @@ class GameObjectController extends Controller
         $room_Id = $room->id;
 
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Start een game api/start-game.'], 401);
         }
 
         if ($playerSession->current_room_id != $room_Id) {
-            return response()->json(['error' => 'You need to be in the room to look at objects.'], 403);
+            return response()->json(['error' => 'Je moet in de kamer zijn om dit object te bekijken.'], 403);
         }
  
         $object = GameObject::where('room_id', $room_Id)
@@ -30,11 +30,11 @@ class GameObjectController extends Controller
             ->first();
         
         if (!$object) {
-            return response()->json(['error' => "Object '{$objectName}' not found in this room."], 404);
+            return response()->json(['error' => "Object '{$objectName}' niet gevonden in deze kamer "], 404);
         }
 
         if ($object->is_locked) {
-            return response()->json(['error' => 'This object is locked.'], 403);
+            return response()->json(['error' => 'Dit object is vergrendeld.'], 403);
         }
         
         $childObjects = GameObject::where('parent_id', $object->id)
@@ -50,7 +50,7 @@ class GameObjectController extends Controller
             $response['objects'] = $childObjects->pluck('name');
         } else if ($object->type === 'container') {
             $response['objects'] = [];
-            $response['message'] = 'This ' . $object->name . ' appears to be empty.';
+            $response['message'] = 'Deze ' . $object->name . ' lijkt leeg te zijn.';
         }
         
         return response()->json($response);
@@ -64,11 +64,11 @@ class GameObjectController extends Controller
         $room_Id = $room->id;
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Ongeldige sessie. Start een nieuw spel.'], 401);
         }
 
         if ($playerSession->current_room_id != $room_Id) {
-            return response()->json(['error' => 'You need to be in the room to look at objects.'], 403);
+            return response()->json(['error' => 'Je moet in de kamer zijn om objecten te bekijken.'], 403);
         }
         
         $parentObject = GameObject::where('room_id', $room_Id)
@@ -77,7 +77,7 @@ class GameObjectController extends Controller
             ->first();
         
         if (!$parentObject) {
-            return response()->json(['error' => "Object '{$objectName}' not found in this room."], 404);
+            return response()->json(['error' => "Object '{$objectName}' niet gevonden in deze kamer."], 404);
         }
         
         $subObject = GameObject::where('parent_id', $parentObject->id)
@@ -86,7 +86,7 @@ class GameObjectController extends Controller
             ->first();
         
         if (!$subObject) {
-            return response()->json(['error' => "Sub-object '{$subObjectName}' not found in '{$objectName}'."], 404);
+            return response()->json(['error' => "Subobject '{$subObjectName}' niet gevonden in '{$objectName}'."], 404);
         }
         
         $containedItems = GameObject::where('parent_id', $subObject->id)
@@ -102,7 +102,7 @@ class GameObjectController extends Controller
             $response['objects'] = $containedItems->pluck('name');
         } else if ($subObject->type === 'container') {
             $response['objects'] = [];
-            $response['message'] = 'This ' . $subObject->name . ' appears to be empty.';
+            $response['message'] = 'Deze ' . $subObject->name . ' lijkt leeg te zijn.';
         }
         
         if ($subObject->has_hidden_items && !$subObject->revealed_hidden) {
@@ -119,7 +119,7 @@ class GameObjectController extends Controller
                 $subObject->revealed_hidden = true;
                 $subObject->save();
                 
-                $response['message'] = 'You found something hidden!';
+                $response['message'] = 'Je hebt iets verborgens gevonden!';
                 $response['objects'] = GameObject::where('parent_id', $subObject->id)
                     ->where('is_visible', true)
                     ->pluck('name');

@@ -15,7 +15,7 @@ class InventoryController extends Controller
         $playerSession = $this->getPlayerSession($request);
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Ongeldige sessie. Start alstublieft een nieuw spel.'], 401);
         }
         
         $inventoryItems = Inventory::where('player_session_id', $playerSession->id)
@@ -45,11 +45,11 @@ class InventoryController extends Controller
         $room_Id = $room->id;
 
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Ongeldige sessie. Start alstublieft een nieuw spel.'], 401);
         }
         
         if ($playerSession->current_room_id != $room_Id) {
-            return response()->json(['error' => 'You need to be in the room to take items.'], 403);
+            return response()->json(['error' => 'Je moet in de kamer zijn om items te kunnen pakken.'], 403);
         }
         
         $parentObject = GameObject::where('room_id', $room_Id)
@@ -58,7 +58,7 @@ class InventoryController extends Controller
             ->first();
         
         if (!$parentObject) {
-            return response()->json(['error' => "Object '{$objectName}' not found in this room."], 404);
+            return response()->json(['error' => "Object '{$objectName}' niet gevonden in deze kamer."], 404);
         }
         
         $subObject = GameObject::where('parent_id', $parentObject->id)
@@ -67,7 +67,7 @@ class InventoryController extends Controller
             ->first();
         
         if (!$subObject) {
-            return response()->json(['error' => "Sub-object '{$subObjectName}' not found in '{$objectName}'."], 404);
+            return response()->json(['error' => "Sub-object '{$subObjectName}' niet gevonden in '{$objectName}'."], 404);
         }
         
         $item = GameObject::where('parent_id', $subObject->id)
@@ -77,7 +77,7 @@ class InventoryController extends Controller
             ->first();
         
         if (!$item) {
-            return response()->json(['error' => "Item '{$itemName}' not found or cannot be taken."], 404);
+            return response()->json(['error' => "Item '{$itemName}' niet gevonden of kan niet worden gepakt."], 404);
         }
         
         Inventory::create([
@@ -96,7 +96,7 @@ class InventoryController extends Controller
             ->pluck('gameObject.name');
         
         return response()->json([
-            'message' => "You have taken the {$itemName}!",
+            'message' => "Je hebt de {$itemName} gepakt!",
             'inventory' => $inventoryItems
         ]);
     }
@@ -108,11 +108,11 @@ class InventoryController extends Controller
         $room_Id = $room->id;
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Ongeldige sessie. Start alstublieft een nieuw spel.'], 401);
         }
         
         if ($playerSession->current_room_id != $room_Id) {
-            return response()->json(['error' => 'You need to be in the room to take items.'], 403);
+            return response()->json(['error' => 'Je moet in de kamer zijn om items te kunnen pakken.'], 403);
         }
         
         
@@ -122,7 +122,7 @@ class InventoryController extends Controller
             ->first();
         
         if (!$container) {
-            return response()->json(['error' => "Object '{$objectName}' not found in this room."], 404);
+            return response()->json(['error' => "Object '{$objectName}' niet gevonden in deze kamer."], 404);
         }
         
         
@@ -133,12 +133,12 @@ class InventoryController extends Controller
             ->first();
         
         if (!$item) {
-            return response()->json(['error' => "Item '{$itemName}' not found in the {$objectName} or cannot be taken."], 404);
+            return response()->json(['error' => "Item '{$itemName}' niet gevonden in de {$objectName} of kan niet worden gepakt."], 404);
         }
         
         
         if ($container->is_locked) {
-            return response()->json(['error' => "The {$objectName} is locked. You need to unlock it first."], 403);
+            return response()->json(['error' => "De {$objectName} is op slot. Je moet deze eerst ontgrendelen."], 403);
         }
         
         
@@ -160,7 +160,7 @@ class InventoryController extends Controller
             ->pluck('gameObject.name');
         
         return response()->json([
-            'message' => "You have taken the {$itemName} from the {$objectName}!",
+            'message' => "Je hebt de {$itemName} uit de {$objectName} gepakt!",
             'inventory' => $inventoryItems
         ]);
     }

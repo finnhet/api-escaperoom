@@ -103,7 +103,7 @@ class RoomController extends Controller
         
         $hints = [];
         if ($room->is_final_room) {
-            $hints[] = "This appears to be the final room. Find a way to escape!";
+            $hints[] = "Je bent in de eind kamer. Zoek de uitgang.";
         }
         
         $puzzles = GameObject::where('room_id', $room->id)
@@ -113,7 +113,7 @@ class RoomController extends Controller
             ->get();
             
         if ($puzzles->count() > 0) {
-            $hints[] = "There might be puzzles to solve in this room. Examine objects carefully.";
+            $hints[] = "Er is mischien een puzzel die je moet oplossen.";
         }
         
         return response()->json([
@@ -129,7 +129,7 @@ class RoomController extends Controller
         $playerSession = $this->getPlayerSession($request);
         
         if (!$playerSession) {
-            return response()->json(['error' => 'Invalid session. Please start a new game.'], 401);
+            return response()->json(['error' => 'Start opnieuw een game.'], 401);
         }
         
         $currentRoomId = $playerSession->current_room_id;
@@ -147,14 +147,14 @@ class RoomController extends Controller
         }
         
         if (!$nextRoom) {
-            return response()->json(['error' => "Room {$nextRoomId} not found."], 404);
+            return response()->json(['error' => "Kamer {$nextRoomId} niet gevonden."], 404);
         }
         
         $adjacentRooms = json_decode($currentRoom->adjacent_rooms, true) ?? [];
         
         
         if (!in_array($nextRoom->id, $adjacentRooms)) {
-            return response()->json(['error' => 'This room is not accessible from your current location.'], 400);
+            return response()->json(['error' => 'Deze kamer is niet beschikbaar vanaf u locatie.'], 400);
         }
         
         
@@ -218,7 +218,7 @@ class RoomController extends Controller
                 
                 if (!$keyFound) {
                     return response()->json([
-                        'error' => 'The door is locked. Find the right key!',
+                        'error' => 'De deur zit op slot. Zoek de juiste sleutel',
                         'current_room' => $currentRoom->name
                     ], 403);
                 }
@@ -246,7 +246,7 @@ class RoomController extends Controller
         $currentRoom = Room::find($playerSession->current_room_id);
         
         if (!$currentRoom->is_final_room) {
-            return response()->json(['error' => 'You need to reach the final room first!'], 403);
+            return response()->json(['error' => 'Je moet eerst de laatste kamer bereiken'], 403);
         }
         
         $exitDoor = GameObject::where('room_id', $currentRoom->id)
@@ -257,8 +257,8 @@ class RoomController extends Controller
         if ($exitDoor && $exitDoor->is_locked) {
             
             return response()->json([
-                'error' => 'The exit door is still locked. You need to enter the 6-digit code from the torn papers.',
-                'hint' => 'Find and collect all three torn paper pieces scattered throughout the rooms and combine their numbers to form the 6-digit code.'
+                'error' => 'De uitgang is op slot. Zoek de code via de kapotte papiertjes.',
+                'hint' => 'Vind alle 3 de papiertjes en los het 6 nummerige raadsel op.',
             ], 403);
         }
         
@@ -269,8 +269,8 @@ class RoomController extends Controller
         $duration = $playerSession->end_time->diffInMinutes($playerSession->start_time);
         
         return response()->json([
-            'message' => "Congratulations! You've escaped the rooms!",
-            'time_taken' => $duration . ' minutes',
+            'message' => "Je hebt het gehaald!",
+            'time_taken' => $duration . ' minuten',
             'rooms_explored' => Room::count()
         ]);
     }
